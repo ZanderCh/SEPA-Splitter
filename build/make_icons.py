@@ -1,4 +1,4 @@
-"""Erzeugt die Programm-Icons aus build/sepa-logo.png (einmalig, Ergebnis ist eingecheckt).
+"""Erzeugt die Programm-Icons aus sepa_splitter/assets/sepa-logo.png (einmalig, Ergebnis ist eingecheckt).
 
 Benötigt Pillow:  pip install pillow ;  python build/make_icons.py
 Das Logo (Querformat) wird zentriert auf eine transparente quadratische Fläche gesetzt.
@@ -11,7 +11,7 @@ from pathlib import Path
 from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
-src = Image.open(ROOT / "build" / "sepa-logo.png").convert("RGBA")
+src = Image.open(ROOT / "sepa_splitter" / "assets" / "sepa-logo.png").convert("RGBA")
 side = max(src.size)
 square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
 square.paste(src, ((side - src.width) // 2, (side - src.height) // 2), src)

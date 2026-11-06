@@ -93,6 +93,7 @@ def test_full_flow(qtbot, env):
     w = make_window(qtbot, cfg)
     assert not w.btn_split.isEnabled() and not w.btn_open.isEnabled()
     assert not w.windowIcon().isNull()
+    assert w.logo.pixmap() is not None and not w.logo.pixmap().isNull()   # Logo im Fenster
     # „Datei aufteilen“ sitzt unten, unterhalb von Vorschau und Fortschrittsbalken-Zeile
     split_y = w.btn_split.mapTo(w, w.btn_split.rect().topLeft()).y()
     assert split_y > w.table.mapTo(w, w.table.rect().bottomLeft()).y()
@@ -117,6 +118,7 @@ def test_full_flow(qtbot, env):
     assert [w.table.item(r, 1).text() for r in range(3)] == ["667", "667", "666"]
     assert w.btn_split.isEnabled()
     assert not list(work.glob("beispiel_008_02_2000tx_?.xml"))   # Vorschau schreibt nichts
+    assert w.progress.value() == 0                              # Balken läuft erst beim Aufteilen
 
     # Bestätigung + Fortschritt
     seen_progress = []
@@ -153,6 +155,7 @@ def test_confirmation_declined_writes_nothing(qtbot, env):
     w.set_file(str(work / "beispiel_008_08_1000tx_crlf.xml"))
     wait_idle(qtbot, w)
     assert w.table.rowCount() == 2 and w.btn_split.isEnabled()
+    assert w.progress.value() == 0
     qtbot.mouseClick(w.btn_split, Qt.LeftButton)
     wait_idle(qtbot, w)
     assert not list(work.glob("beispiel_008_08_1000tx_crlf_*.xml"))

@@ -404,6 +404,18 @@ class TestConfigAndPaths(Base):
         self.assertIn("VerifyOriginalIntegrity", joined)
         self.assertIn("PreserveOriginal", joined)
 
+    def test_fixed_rules_not_in_default_ini(self):
+        for key in ("[SEPA]", "PreserveOriginal", "OutputDirectory", "StrictMode", "ValidateXML"):
+            self.assertNotIn(key + (" =" if not key.startswith("[") else ""), DEFAULT_INI)
+        # Ältere INI mit den früheren Einträgen (Wert true): wird still akzeptiert
+        ini = self.dir / "alt.ini"
+        ini.write_text("[Files]\nOutputDirectory = same_as_source\nPreserveOriginal = true\n"
+                       "[SEPA]\nValidateXML = true\nStrictMode = true\n", encoding="utf-8")
+        self.assertEqual(load_config(ini).problems, [])
+        # Versuch, einen anderen Ausgabeordner zu setzen: gemeldet, ignoriert
+        ini.write_text("[Files]\nOutputDirectory = /tmp/anders\n", encoding="utf-8")
+        self.assertIn("OutputDirectory", "\n".join(load_config(ini).problems))
+
     def test_broken_ini_file(self):
         ini = self.dir / "c.ini"
         ini.write_text("das ist kein ini\n[unvollständig", encoding="utf-8")

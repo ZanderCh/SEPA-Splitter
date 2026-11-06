@@ -13,14 +13,17 @@ gilt der Default. Die Standarddatei steht in `sepa_splitter/config.py` (`DEFAULT
 | Paths/RememberLastDirectory | true/false | true |
 | Paths/LastDirectoryOverridesBasePath | true/false | false |
 | Paths/NameScheme | JJJJ/Qn, JJJJ/Mnn, JJ/Mnn, JJ/Qn, JJJJQn, JJQn … | JJJJ/Qn |
-| Files/OutputDirectory | same_as_source | same_as_source |
 | Files/FilenameSeparator | 0–3 Zeichen | _ |
 | Files/FilenameSuffixMode | letters, numbers | letters |
 | Files/OverwriteMode | ask, abort, overwrite | ask |
-| SEPA/* und Files/PreserveOriginal | **gesperrt**, müssen true bleiben (false wird gemeldet und ignoriert) | true |
 | GUI/WindowWidth, WindowHeight | 640–4000, 480–3000 | 950, 680 |
 | GUI/ShowPreview | true/false | true |
 | Logging/Enabled, LogLevel, LogFile | true/false; DEBUG–ERROR; Dateiname | true, INFO, SEPA-Splitter.log |
+
+**Nicht einstellbar (fest im Programm):** Das Original wird nie verändert; Teildateien und Protokoll liegen immer im
+Ordner der Originaldatei; alle Prüfungen und die Originaltreue-Prüfung laufen immer. Ältere INI-Dateien mit
+`[Files] OutputDirectory`/`PreserveOriginal` oder einem Abschnitt `[SEPA]` funktionieren weiter: Die Einträge werden
+ignoriert, ein Versuch, eine Regel abzuschalten (false bzw. anderer Ausgabeordner), wird beim Start gemeldet.
 
 Der zuletzt verwendete Ordner wird in `SEPA-Splitter.state` neben der INI abgelegt. BasePath wirkt nur auf den Startordner
 des Öffnen-Dialogs; Ausgabedateien und Protokoll liegen immer beim Original.

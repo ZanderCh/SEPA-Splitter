@@ -18,8 +18,12 @@ DEFAULT_INI = """\
 # ============================================================
 # Zeilen mit # sind Kommentare. Schlüssel sind unabhängig von Groß-/Kleinschreibung.
 # Ungültige Werte werden gemeldet; es gilt dann der Standardwert.
-# Sicherheitsregeln (Schutz des Originals, Originaltreue, Validierung)
-# lassen sich NICHT abschalten. Entsprechende Schalter sind gesperrt (siehe [SEPA]).
+# Fest im Programm und NICHT einstellbar (daher hier keine Einträge):
+#   - Die Originaldatei wird nie verändert.
+#   - Teildateien und Protokoll werden im Ordner der Originaldatei abgelegt.
+#   - Prüfungen (XML, Struktur, Anzahl/Kontrollsummen) und die Originaltreue-Prüfung
+#     der erzeugten Dateien laufen immer; geändert werden nur NbOfTxs, CtrlSum,
+#     MsgId und PmtInfId, pain-Version und Formatierung bleiben erhalten.
 
 # ------------------------------------------------------------
 # Generelle Angaben
@@ -83,10 +87,6 @@ NameScheme = JJJJ/Qn
 # Ausgabedateien
 # ------------------------------------------------------------
 [Files]
-# Ausgabeordner. Mögliche Werte: same_as_source (fest vorgegeben)
-# Default: same_as_source
-OutputDirectory = same_as_source
-
 # Trenner zwischen Dateiname und Suffix.
 # Zulässig: 0 bis 3 Zeichen aus A-Z a-z 0-9 _ - .
 # Beispiel: _  ->  SEPA_Lastschriften_a.xml
@@ -103,24 +103,6 @@ FilenameSuffixMode = letters
 # overwrite = vorhandene Ausgabedateien (nie das Original!) ersetzen
 # Default: ask
 OverwriteMode = ask
-
-# Original schützen (gesperrt, immer true).
-PreserveOriginal = true
-
-# ------------------------------------------------------------
-# SEPA-Prüfungen
-# ------------------------------------------------------------
-# Alle Schalter dieses Abschnitts sind Sicherheitsregeln und gesperrt: Sie müssen true bleiben.
-# Der Wert false wird gemeldet und ignoriert.
-[SEPA]
-ValidateXML = true
-ValidateControlSum = true
-UpdateMessageId = true
-UpdatePaymentInfoId = true
-PreservePainVersion = true
-PreserveOriginalFormatting = true
-VerifyOriginalIntegrity = true
-StrictMode = true
 
 # ------------------------------------------------------------
 # Oberfläche
@@ -148,6 +130,8 @@ LogLevel = INFO
 LogFile = SEPA-Splitter.log
 """
 
+# Schlüssel älterer INI-Versionen. Die Regeln sind fest im Programm; nur ein Versuch, sie abzuschalten
+# (Wert false), wird gemeldet. Neue INI-Dateien enthalten diese Schlüssel nicht mehr.
 _LOCKED = ("ValidateXML", "ValidateControlSum", "UpdateMessageId", "UpdatePaymentInfoId",
            "PreservePainVersion", "PreserveOriginalFormatting", "VerifyOriginalIntegrity", "StrictMode")
 
@@ -248,7 +232,7 @@ def load_config(ini_path: Path | None = None) -> Config:
     cfg.name_scheme = scheme
     out = get("Files", "OutputDirectory")
     if out not in (None, "", "same_as_source"):
-        cfg.problems.append("[Files] OutputDirectory: nur „same_as_source“ ist zulässig. Es wird das Verzeichnis der Originaldatei verwendet.")
+        cfg.problems.append("[Files] OutputDirectory ist nicht einstellbar und wird ignoriert: Teildateien werden immer im Ordner der Originaldatei abgelegt.")
     sep = get("Files", "FilenameSeparator")
     if sep is not None and not _SEP_OK.match(sep):
         cfg.problems.append(f"[Files] FilenameSeparator: „{sep}“ ist ungültig. Standard: _")
@@ -257,10 +241,10 @@ def load_config(ini_path: Path | None = None) -> Config:
     cfg.suffix_mode = choice("Files", "FilenameSuffixMode", "letters", ("letters", "numbers"))
     cfg.overwrite_mode = choice("Files", "OverwriteMode", "ask", ("ask", "abort", "overwrite"))
     if not boolean("Files", "PreserveOriginal", True):
-        cfg.problems.append("[Files] PreserveOriginal=false ist gesperrt (Schutz des Originals) und wird ignoriert.")
+        cfg.problems.append("[Files] PreserveOriginal ist nicht einstellbar und wird ignoriert: Das Original wird nie verändert.")
     for key in _LOCKED:
         if not boolean("SEPA", key, True):
-            cfg.problems.append(f"[SEPA] {key}=false ist eine gesperrte Sicherheitsregel und wird ignoriert.")
+            cfg.problems.append(f"[SEPA] {key} ist nicht einstellbar und wird ignoriert: Die Sicherheitsregel ist fest im Programm.")
     cfg.window_width = integer("GUI", "WindowWidth", 950, 640, 4000)
     cfg.window_height = integer("GUI", "WindowHeight", 680, 480, 3000)
     cfg.show_preview = boolean("GUI", "ShowPreview", True)

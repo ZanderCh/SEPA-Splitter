@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal, Slot
-from PySide6.QtGui import QDesktopServices, QIcon
+from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
 from PySide6.QtWidgets import (QApplication, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
                                QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar,
                                QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
@@ -21,7 +21,10 @@ from .paths import dialog_filters, resolve_start_dir
 from .protocol import Protocol
 
 
-ICON_PATH = Path(__file__).resolve().parent / "assets" / "icon.png"   # im Paket: _internal/sepa_splitter/assets
+ASSETS = Path(__file__).resolve().parent / "assets"      # im Paket: _internal/sepa_splitter/assets
+ICON_PATH = ASSETS / "icon.png"
+LOGO_PATH = ASSETS / "sepa-logo.png"
+LOGO_HEIGHT = 58
 
 
 def app_icon() -> QIcon:
@@ -82,6 +85,7 @@ class MainWindow(QMainWindow):
         self._thread: Optional[QThread] = None
         self._worker: Optional[Worker] = None
         self._on_done = None
+        self._show_progress = False
         self.split_done = False
         self.setWindowTitle(f"SEPA-Splitter {__version__}")
         self.setWindowIcon(app_icon())
@@ -100,6 +104,20 @@ class MainWindow(QMainWindow):
         w = QWidget()
         self.setCentralWidget(w)
         v = QVBoxLayout(w)
+        # Kopf: Logo links, daneben Dateiauswahl und Bedienknöpfe
+        head = QHBoxLayout()
+        self.logo = QLabel()
+        pm = QPixmap(str(LOGO_PATH))
+        if not pm.isNull():
+            dpr = self.devicePixelRatio()           # scharf auch auf HiDPI-Bildschirmen
+            pm = pm.scaledToHeight(round(LOGO_HEIGHT * dpr), Qt.SmoothTransformation)
+            pm.setDevicePixelRatio(dpr)
+            self.logo.setPixmap(pm)
+        self.logo.setToolTip("SEPA-Splitter")
+        head.addWidget(self.logo, 0, Qt.AlignTop)
+        top = QVBoxLayout()
+        head.addLayout(top, 1)
+        v.addLayout(head)
         row = QHBoxLayout()
         self.path_edit = QLineEdit()
         self.path_edit.setPlaceholderText("Vollständiger Pfad der SEPA-XML-Datei – oder Datei hierher ziehen")
@@ -108,7 +126,7 @@ class MainWindow(QMainWindow):
         self.btn_choose.clicked.connect(self.on_choose)
         row.addWidget(self.path_edit, 1)
         row.addWidget(self.btn_choose)
-        v.addLayout(row)
+        top.addLayout(row)
 
         row = QHBoxLayout()
         self.btn_check = QPushButton("Datei prüfen")
@@ -125,7 +143,7 @@ class MainWindow(QMainWindow):
             row.addWidget(b)
         row.addStretch(1)
         row.addWidget(self.btn_quit)
-        v.addLayout(row)
+        top.addLayout(row)
 
         box = QGroupBox("Dateiinformationen")
         form = QFormLayout(box)
@@ -240,10 +258,11 @@ class MainWindow(QMainWindow):
         self.progress.setValue(0)
         self._update_buttons()
 
-    def _run(self, fn, on_done):
+    def _run(self, fn, on_done, show_progress: bool = False):
         if self._thread:
             return
         self._on_done = on_done
+        self._show_progress = show_progress   # Balken läuft nur beim Aufteilen, nicht beim Prüfen
         self._thread = QThread(self)
         self._worker = Worker(fn)
         self._worker.moveToThread(self._thread)
@@ -259,7 +278,8 @@ class MainWindow(QMainWindow):
 
     @Slot(int, str)
     def _on_progress(self, p: int, t: str):
-        self.progress.setValue(p)
+        if self._show_progress:
+            self.progress.setValue(p)
         self.status(t)
 
     def _stop_thread(self):
@@ -296,6 +316,7 @@ class MainWindow(QMainWindow):
             return
         self.chk = None
         self.split_done = False
+        self.progress.setValue(0)
         self.table.setRowCount(0)
         self._set_res(self.res_struct, "")
         self._set_res(self.res_fid, "")
@@ -355,7 +376,9 @@ class MainWindow(QMainWindow):
                 return
         self._set_res(self.res_struct, "")
         self._set_res(self.res_fid, "")
-        self._run(lambda prog: service.split_file(chk, self.cfg, self.proto, lambda _: allow, prog), self._show_split)
+        self.progress.setValue(0)
+        self._run(lambda prog: service.split_file(chk, self.cfg, self.proto, lambda _: allow, prog), self._show_split,
+                  show_progress=True)
 
     def _show_split(self, res: service.SplitResult):
         self._set_res(self.res_struct, "✔ SEPA-Strukturprüfung erfolgreich\nDie erzeugten Dateien erfüllen die implementierten XML- und fachlichen Prüfregeln.")
