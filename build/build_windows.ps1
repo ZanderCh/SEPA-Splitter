@@ -9,7 +9,8 @@ $env:QT_QPA_PLATFORM = "offscreen"
 python -m pytest -v
 if ($LASTEXITCODE -ne 0) { throw "Tests fehlgeschlagen" }
 Remove-Item -Recurse -Force dist, build\work -ErrorAction SilentlyContinue
-pyinstaller --noconfirm --clean --windowed --name SEPA-Splitter --workpath build\work --collect-submodules lxml run_sepa_splitter.py
+pyinstaller --noconfirm --clean --windowed --name SEPA-Splitter --workpath build\work --icon build\icon.ico `
+    --add-data "sepa_splitter\assets;sepa_splitter\assets" --collect-submodules lxml run_sepa_splitter.py
 if ($LASTEXITCODE -ne 0) { throw "PyInstaller fehlgeschlagen" }
 $out = "dist\SEPA-Splitter-Windows"
 New-Item -ItemType Directory -Force $out | Out-Null

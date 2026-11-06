@@ -8,7 +8,9 @@ python3 -m venv .venv-build
 pip install -r requirements-dev.txt
 QT_QPA_PLATFORM=offscreen python -m pytest -v   # Kern- und GUI-Tests; Build bricht bei Fehlern ab
 rm -rf dist build/work
-pyinstaller --noconfirm --clean --windowed --name SEPA-Splitter --workpath build/work \
+ICON=""; [ "$OS" = "Darwin" ] && ICON="--icon build/icon.icns"   # Linux: kein Datei-Icon, nur Fenster-Icon
+pyinstaller --noconfirm --clean --windowed --name SEPA-Splitter --workpath build/work $ICON \
+    --add-data "sepa_splitter/assets:sepa_splitter/assets" \
     --collect-submodules lxml run_sepa_splitter.py
 if [ "$OS" = "Darwin" ]; then
   OUT="dist/SEPA-Splitter-macOS-$ARCH"; mkdir -p "$OUT"

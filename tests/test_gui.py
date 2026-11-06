@@ -92,6 +92,11 @@ def test_full_flow(qtbot, env):
     rec.dialog_result = str(src)
     w = make_window(qtbot, cfg)
     assert not w.btn_split.isEnabled() and not w.btn_open.isEnabled()
+    assert not w.windowIcon().isNull()
+    # „Datei aufteilen“ sitzt unten, unterhalb von Vorschau und Fortschrittsbalken-Zeile
+    split_y = w.btn_split.mapTo(w, w.btn_split.rect().topLeft()).y()
+    assert split_y > w.table.mapTo(w, w.table.rect().bottomLeft()).y()
+    assert split_y > w.msgs.mapTo(w, w.msgs.rect().bottomLeft()).y()
 
     # Dateidialog: Startordner BasePath/JJJJ/Qn, XML-Filter vorausgewählt
     qtbot.mouseClick(w.btn_choose, Qt.LeftButton)

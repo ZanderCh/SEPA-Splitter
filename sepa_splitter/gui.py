@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal, Slot
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import (QApplication, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
                                QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar,
                                QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget,
@@ -19,6 +19,13 @@ from .config import Config, load_config, load_last_dir, save_last_dir
 from .errors import SepaSplitterError
 from .paths import dialog_filters, resolve_start_dir
 from .protocol import Protocol
+
+
+ICON_PATH = Path(__file__).resolve().parent / "assets" / "icon.png"   # im Paket: _internal/sepa_splitter/assets
+
+
+def app_icon() -> QIcon:
+    return QIcon(str(ICON_PATH)) if ICON_PATH.is_file() else QIcon()
 
 
 def fmt_money(v: Decimal, ccy: str = "EUR") -> str:
@@ -77,6 +84,7 @@ class MainWindow(QMainWindow):
         self._on_done = None
         self.split_done = False
         self.setWindowTitle(f"SEPA-Splitter {__version__}")
+        self.setWindowIcon(app_icon())
         self.resize(cfg.window_width, cfg.window_height)
         self.setAcceptDrops(True)
         self._build()
@@ -113,7 +121,7 @@ class MainWindow(QMainWindow):
         self.btn_open.clicked.connect(self.on_open_dir)
         self.btn_log.clicked.connect(self.on_log)
         self.btn_quit.clicked.connect(self.close)
-        for b in (self.btn_check, self.btn_split, self.btn_open, self.btn_log):
+        for b in (self.btn_check, self.btn_open, self.btn_log):
             row.addWidget(b)
         row.addStretch(1)
         row.addWidget(self.btn_quit)
@@ -154,12 +162,24 @@ class MainWindow(QMainWindow):
         self.res_note.setWordWrap(True)
         for l in (self.res_struct, self.res_fid, self.res_note):
             l.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            l.setVisible(False)          # leere Ergebniszeilen nehmen der Vorschau keinen Platz weg
             v.addWidget(l)
+        # Unten: Fortschritt und der Knopf, der die Aufteilung startet
+        row = QHBoxLayout()
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
-        v.addWidget(self.progress)
+        row.addWidget(self.progress, 1)
+        self.btn_split.setMinimumWidth(180)
+        self.btn_split.setDefault(True)
+        row.addWidget(self.btn_split)
+        v.addLayout(row)
         self.statusBar().showMessage("Bereit.")
         self._update_buttons()
+
+    @staticmethod
+    def _set_res(label: QLabel, text: str) -> None:
+        label.setText(text)
+        label.setVisible(bool(text))
 
     def status(self, t: str):
         self.statusBar().showMessage(t)
@@ -214,9 +234,9 @@ class MainWindow(QMainWindow):
         self.msgs.clear()
         for l in self.info.values():
             l.setText("–")
-        self.res_struct.setText("")
-        self.res_fid.setText("")
-        self.res_note.setText("")
+        self._set_res(self.res_struct, "")
+        self._set_res(self.res_fid, "")
+        self._set_res(self.res_note, "")
         self.progress.setValue(0)
         self._update_buttons()
 
@@ -263,8 +283,8 @@ class MainWindow(QMainWindow):
         self._stop_thread()
         self.progress.setValue(0)
         self.status("Fehler.")
-        self.res_struct.setText("")
-        self.res_fid.setText("")
+        self._set_res(self.res_struct, "")
+        self._set_res(self.res_fid, "")
         self.msgs.setPlainText(msg)
         QMessageBox.critical(self, "Fehler", msg)
         self._update_buttons()
@@ -277,9 +297,9 @@ class MainWindow(QMainWindow):
         self.chk = None
         self.split_done = False
         self.table.setRowCount(0)
-        self.res_struct.setText("")
-        self.res_fid.setText("")
-        self.res_note.setText("")
+        self._set_res(self.res_struct, "")
+        self._set_res(self.res_fid, "")
+        self._set_res(self.res_note, "")
         path = Path(text)
         self._run(lambda prog: service.check_file(path, self.cfg, self.proto, prog), self._show_check)
 
@@ -302,7 +322,7 @@ class MainWindow(QMainWindow):
             self.status("Die Datei hat Prüffehler und kann nicht aufgeteilt werden.")
         elif not chk.split_needed:
             self.status(f"Keine Aufteilung nötig: {d.total_tx} ≤ {self.cfg.max_transactions}. Es wird nichts erzeugt.")
-            self.res_note.setText("Die Datei überschreitet den Grenzwert nicht. Das Original bleibt unverändert, es wird keine Ausgabedatei erzeugt.")
+            self._set_res(self.res_note, "Die Datei überschreitet den Grenzwert nicht. Das Original bleibt unverändert, es wird keine Ausgabedatei erzeugt.")
         else:
             for n, p in zip(chk.names, chk.plans):
                 r = self.table.rowCount()
@@ -333,14 +353,14 @@ class MainWindow(QMainWindow):
             if not allow:
                 self.status("Abgebrochen – es wurde nichts geschrieben.")
                 return
-        self.res_struct.setText("")
-        self.res_fid.setText("")
+        self._set_res(self.res_struct, "")
+        self._set_res(self.res_fid, "")
         self._run(lambda prog: service.split_file(chk, self.cfg, self.proto, lambda _: allow, prog), self._show_split)
 
     def _show_split(self, res: service.SplitResult):
-        self.res_struct.setText("✔ SEPA-Strukturprüfung erfolgreich\nDie erzeugten Dateien erfüllen die implementierten XML- und fachlichen Prüfregeln.")
-        self.res_fid.setText("✔ Originaltreue erfolgreich geprüft\nAlle übernommenen Transaktionsblöcke sind unverändert. Sämtliche übrigen Unterschiede sind dokumentiert und zulässig.")
-        self.res_note.setText("Hinweis: Daraus lässt sich nicht automatisch ableiten, dass die Sparkasse die Dateien annimmt.")
+        self._set_res(self.res_struct, "✔ SEPA-Strukturprüfung erfolgreich\nDie erzeugten Dateien erfüllen die implementierten XML- und fachlichen Prüfregeln.")
+        self._set_res(self.res_fid, "✔ Originaltreue erfolgreich geprüft\nAlle übernommenen Transaktionsblöcke sind unverändert. Sämtliche übrigen Unterschiede sind dokumentiert und zulässig.")
+        self._set_res(self.res_note, "Hinweis: Daraus lässt sich nicht automatisch ableiten, dass die Sparkasse die Dateien annimmt.")
         self.msgs.setPlainText("Erzeugt:\n" + "\n".join(str(f) for f in res.files) + "\n\n" + "\n".join(res.changes))
         self.status(f"Fertig: {len(res.files)} Dateien erzeugt.")
         self.split_done = True   # erneutes Aufteilen erst nach erneuter Prüfung
@@ -363,6 +383,7 @@ class MainWindow(QMainWindow):
 def run() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("SEPA-Splitter")
+    app.setWindowIcon(app_icon())   # gilt auch für Dialoge
     cfg = load_config()
     win = MainWindow(cfg)
     win.show()
