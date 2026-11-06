@@ -6,7 +6,7 @@ OS="$(uname -s)"; ARCH="$(uname -m)"
 python3 -m venv .venv-build
 . .venv-build/bin/activate
 pip install -r requirements-dev.txt
-python -m unittest discover -s tests -v          # Build bricht bei fehlgeschlagenen Tests ab
+QT_QPA_PLATFORM=offscreen python -m pytest -v   # Kern- und GUI-Tests; Build bricht bei Fehlern ab
 rm -rf dist build/work
 pyinstaller --noconfirm --clean --windowed --name SEPA-Splitter --workpath build/work \
     --collect-submodules lxml run_sepa_splitter.py
@@ -17,6 +17,6 @@ else
   OUT="dist/SEPA-Splitter-Linux-$ARCH"; mkdir -p "$OUT"
   mv dist/SEPA-Splitter/* "$OUT/"; rmdir dist/SEPA-Splitter
 fi
-cp SEPA-Splitter.ini "$OUT/"; cp -r schemas "$OUT/"
+cp SEPA-Splitter.ini "$OUT/"
 echo "Fertig: $OUT"
 # macOS: Signierung/Notarisierung siehe BUILD.md

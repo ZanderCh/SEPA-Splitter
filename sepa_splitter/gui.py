@@ -7,7 +7,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Optional
 
-from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal
+from PySide6.QtCore import QObject, Qt, QThread, QUrl, Signal, Slot
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (QApplication, QFileDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel,
                                QLineEdit, QMainWindow, QMessageBox, QPlainTextEdit, QProgressBar,
@@ -39,6 +39,7 @@ class Worker(QObject):
         super().__init__()
         self._fn = fn
 
+    @Slot()
     def run(self):
         try:
             self.done.emit(self._fn(lambda p, t: self.progress.emit(p, t)))
@@ -73,6 +74,8 @@ class MainWindow(QMainWindow):
         self.outdir: Optional[Path] = None
         self._thread: Optional[QThread] = None
         self._worker: Optional[Worker] = None
+        self._on_done = None
+        self.split_done = False
         self.setWindowTitle(f"SEPA-Splitter {__version__}")
         self.resize(cfg.window_width, cfg.window_height)
         self.setAcceptDrops(True)
@@ -165,7 +168,8 @@ class MainWindow(QMainWindow):
         busy = self._thread is not None
         self.btn_check.setEnabled(not busy)
         self.btn_choose.setEnabled(not busy)
-        self.btn_split.setEnabled(not busy and bool(self.chk and self.chk.doc.ok and self.chk.split_needed))
+        self.btn_split.setEnabled(not busy and not self.split_done
+                                  and bool(self.chk and self.chk.doc.ok and self.chk.split_needed))
         self.btn_open.setEnabled(self.outdir is not None)
 
     # ------------------------------------------------------------ Drag & Drop
@@ -204,6 +208,7 @@ class MainWindow(QMainWindow):
 
     def _reset_results(self):
         self.chk = None
+        self.split_done = False
         self.outdir = None
         self.table.setRowCount(0)
         self.msgs.clear()
@@ -218,28 +223,42 @@ class MainWindow(QMainWindow):
     def _run(self, fn, on_done):
         if self._thread:
             return
+        self._on_done = on_done
         self._thread = QThread(self)
         self._worker = Worker(fn)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
-        self._worker.progress.connect(lambda p, t: (self.progress.setValue(p), self.status(t)))
-        self._worker.done.connect(lambda r: self._finish(on_done, r))
-        self._worker.failed.connect(self._fail)
+        # Wichtig: Signale des Worker-Threads nur mit gebundenen Slots dieses (GUI-)Objekts und
+        # ausdrücklich als QueuedConnection verbinden. Lambdas würden im Worker-Thread ausgeführt
+        # (Widget-Zugriffe aus fremdem Thread, QThread.wait() auf sich selbst -> Hänger).
+        self._worker.progress.connect(self._on_progress, Qt.QueuedConnection)
+        self._worker.done.connect(self._finish, Qt.QueuedConnection)
+        self._worker.failed.connect(self._fail, Qt.QueuedConnection)
         self._thread.start()
         self._update_buttons()
+
+    @Slot(int, str)
+    def _on_progress(self, p: int, t: str):
+        self.progress.setValue(p)
+        self.status(t)
 
     def _stop_thread(self):
         if self._thread:
             self._thread.quit()
             self._thread.wait()
+            self._worker.deleteLater()
+            self._thread.deleteLater()
             self._thread = None
             self._worker = None
 
-    def _finish(self, on_done, result):
+    @Slot(object)
+    def _finish(self, result):
         self._stop_thread()
+        on_done, self._on_done = self._on_done, None
         on_done(result)
         self._update_buttons()
 
+    @Slot(str)
     def _fail(self, msg: str):
         self._stop_thread()
         self.progress.setValue(0)
@@ -256,6 +275,7 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Keine Datei", "Bitte zuerst eine Datei auswählen.")
             return
         self.chk = None
+        self.split_done = False
         self.table.setRowCount(0)
         self.res_struct.setText("")
         self.res_fid.setText("")
@@ -275,7 +295,7 @@ class MainWindow(QMainWindow):
         self.info["pmt"].setText(str(len(d.pmtinfs)))
         self.info["sum"].setText(fmt_money(d.declared_sum, d.currency) if d.declared_sum is not None else "nicht angegeben")
         self.info["max"].setText(str(self.cfg.max_transactions))
-        self.info["struct"].setText(("in Ordnung" if d.structure_ok else "FEHLER") + f" – Schema: {d.schema_status}")
+        self.info["struct"].setText("in Ordnung" if d.structure_ok else "FEHLER")
         self.info["sums"].setText("in Ordnung (Anzahl und Kontrollsummen stimmen)" if d.sums_ok else "FEHLER – siehe Meldungen")
         self.msgs.setPlainText("\n".join(f"[{'Fehler' if i.level == 'error' else 'Hinweis'}] {i.text}" for i in d.issues))
         if not d.ok:
@@ -295,7 +315,7 @@ class MainWindow(QMainWindow):
             self.status(f"Aufteilung in {len(chk.plans)} Dateien geplant. Mit „Datei aufteilen“ bestätigen.")
 
     def on_split(self):
-        if not (self.chk and self.chk.doc.ok and self.chk.split_needed):
+        if self.split_done or not (self.chk and self.chk.doc.ok and self.chk.split_needed):
             return
         chk = self.chk
         if self.cfg.confirm_before_split:
@@ -318,13 +338,12 @@ class MainWindow(QMainWindow):
         self._run(lambda prog: service.split_file(chk, self.cfg, self.proto, lambda _: allow, prog), self._show_split)
 
     def _show_split(self, res: service.SplitResult):
-        self.res_struct.setText("✔ SEPA-Strukturprüfung erfolgreich\nDie erzeugten Dateien erfüllen die implementierten XML-, Schema- und fachlichen Prüfregeln.")
+        self.res_struct.setText("✔ SEPA-Strukturprüfung erfolgreich\nDie erzeugten Dateien erfüllen die implementierten XML- und fachlichen Prüfregeln.")
         self.res_fid.setText("✔ Originaltreue erfolgreich geprüft\nAlle übernommenen Transaktionsblöcke sind unverändert. Sämtliche übrigen Unterschiede sind dokumentiert und zulässig.")
-        self.res_note.setText("Hinweis: Daraus lässt sich nicht automatisch ableiten, dass die Sparkasse die Dateien annimmt."
-                              + ("\nSchema-Hinweis: " + self.chk.doc.schema_status if self.chk and "fehlt" in self.chk.doc.schema_status else ""))
+        self.res_note.setText("Hinweis: Daraus lässt sich nicht automatisch ableiten, dass die Sparkasse die Dateien annimmt.")
         self.msgs.setPlainText("Erzeugt:\n" + "\n".join(str(f) for f in res.files) + "\n\n" + "\n".join(res.changes))
         self.status(f"Fertig: {len(res.files)} Dateien erzeugt.")
-        self.btn_split.setEnabled(False)
+        self.split_done = True   # erneutes Aufteilen erst nach erneuter Prüfung
 
     def on_open_dir(self):
         if self.outdir:

@@ -114,7 +114,6 @@ PreserveOriginal = true
 # Der Wert false wird gemeldet und ignoriert.
 [SEPA]
 ValidateXML = true
-ValidateSchema = true
 ValidateControlSum = true
 UpdateMessageId = true
 UpdatePaymentInfoId = true
@@ -149,7 +148,7 @@ LogLevel = INFO
 LogFile = SEPA-Splitter.log
 """
 
-_LOCKED = ("ValidateXML", "ValidateSchema", "ValidateControlSum", "UpdateMessageId", "UpdatePaymentInfoId",
+_LOCKED = ("ValidateXML", "ValidateControlSum", "UpdateMessageId", "UpdatePaymentInfoId",
            "PreservePainVersion", "PreserveOriginalFormatting", "VerifyOriginalIntegrity", "StrictMode")
 
 

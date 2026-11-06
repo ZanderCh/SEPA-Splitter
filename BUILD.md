@@ -8,11 +8,13 @@ Gebaut wird **auf dem jeweiligen Zielsystem** (PyInstaller kann nicht kreuz-komp
 | Linux x86_64 / aarch64 | `build/build_unix.sh` (je Architektur auf passender Maschine) |
 | macOS arm64 und x86_64 | `build/build_unix.sh` auf Apple-Silicon- bzw. Intel-Mac (oder universal2-Python für ein Universal-Binary) |
 
-Die Skripte führen zuerst alle Tests aus, bauen mit PyInstaller (`--windowed`, onedir) und legen INI und `schemas/`
+Die Skripte führen zuerst alle Tests aus, bauen mit PyInstaller (`--windowed`, onedir) und legen die INI
 neben die Anwendung. Der Quellcode ist auf allen Plattformen identisch; plattformspezifisch ist nur Paketierung.
 
-**Status:** Die Skripte wurden in der Entwicklungsumgebung nicht ausgeführt (kein PyInstaller/Netz, nur ein Linux-System);
-sie sind ungetestet und müssen auf jedem Zielsystem einmal durchlaufen. Nuitka ist als Alternative möglich
+**Status:** `build_unix.sh` wurde unter Linux x86_64 (Ubuntu 24.04, Python 3.12) ausgeführt. Das Paket startet,
+findet die INI neben der ausführbaren Datei (unabhängig vom Arbeitsverzeichnis, legt sie bei Bedarf an) und zeigt
+die Oberfläche (xcb und offscreen). Windows und macOS werden über GitHub Actions gebaut
+(`.github/workflows/build.yml`). Nuitka ist als Alternative möglich
 (`python -m nuitka --standalone --enable-plugin=pyside6 run_sepa_splitter.py`).
 
 ## macOS Signierung/Notarisierung

@@ -1,7 +1,8 @@
 # Tests
 
 ```
-python -m unittest discover -s tests -v     # oder: pytest
+python -m pytest -v                          # Kern- und GUI-Tests
+python -m unittest discover -s tests -v     # nur Kerntests (test_core.py)
 ```
 Abgedeckt (`tests/test_core.py`, ~50 Tests): Verteilungstabelle (1…3000), Suffixe (a…z, aa…), beide pain-Versionen,
 LF/CRLF, Präfix/Default-Namespace, Tab-/Leer-Einrückung, Kommentare, bytegleiche Transaktionsblöcke, CtrlSum-Nachkommastellen,
@@ -10,6 +11,7 @@ große Datei (10.000 Tx), Manipulationserkennung des Verifiers, Scanner (`>` in 
 (ungültiges XML, unbekannte Version, falsche Summen, DOCTYPE/XXE, UTF-16, vorhandene Ausgabedateien, fehlende Schreibrechte,
 Schreibfehler mit Rollback, geändertes Original), INI (fehlend/defekt/ungültig/gesperrt), Startordner/NameScheme, Protokoll ohne IBAN.
 
-Nicht automatisiert getestet: die PySide6-Oberfläche selbst (Drag&Drop, Dialoge) – manuelle Checkliste:
-Datei wählen (Dialog startet in BasePath/JJJJ/Qn, XML-Filter aktiv), Vorschau, Bestätigung, Fortschritt, „Ausgabeordner öffnen“,
-„Protokoll anzeigen“, Vergleich mit Meld/WinMerge. Synthetische Dateien: `samples/` bzw. `sepa_splitter/samplegen.py`.
+Oberfläche (`tests/test_gui.py`, pytest-qt, läuft offscreen ohne Bildschirm): Dateidialog (Startordner BasePath/JJJJ/Qn,
+XML-Filter vorausgewählt, Ersatzordner-Hinweis), Prüfung im Hintergrund-Thread, Vorschau, Bestätigung (Ja/Nein), Fortschritt,
+Ergebnis, kein zweites Aufteilen ohne neue Prüfung, „Ausgabeordner öffnen“, „Protokoll anzeigen“, Fehlerfall.
+Die Dialoge werden dabei durch Aufzeichner ersetzt. Weiterhin manuell: Drag&Drop, echte native Dialoge, Vergleich mit Meld/WinMerge. Synthetische Dateien: `samples/` bzw. `sepa_splitter/samplegen.py`.

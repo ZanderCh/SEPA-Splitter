@@ -30,8 +30,8 @@ Weitere Dokumentation: INSTALL.md, BUILD.md, CONFIG.md, TESTING.md.
 · `paths.py` (Startordner) · `service.py` (Ablauf) · `gui.py` · `cli.py` · `samplegen.py` (synthetische Testdaten).
 
 ## Wichtige Grenzen (bitte lesen)
-* **XSD-Dateien liegen nicht bei** (konnten offline nicht beschafft werden). Ablage: `schemas/` (siehe dort).
-  Ohne XSD gilt nur die eingebaute Strukturprüfung (Pflichtelemente, versionsspezifische BIC/BICFI-Regel);
-  die Oberfläche zeigt das an. Vor produktivem Einsatz bitte die offiziellen XSDs einspielen.
+* **Keine XSD-Validierung.** Die Originale werden als wohlgeformt und bankseitig gültig vorausgesetzt. Geprüft werden
+  Wohlgeformtheit, die eingebaute Strukturprüfung (Pflichtelemente, versionsspezifische BIC/BICFI-Regel), Anzahl-
+  und Summenfelder sowie – entscheidend – die Originaltreue jeder Ausgabedatei gegenüber dem Original.
 * Bankseitige Annahme durch die Sparkasse ist damit **nicht** garantiert.
 * Unterstützt werden ASCII-kompatible Kodierungen (UTF-8 u. a.); UTF-16/32 und Dateien mit DOCTYPE werden abgelehnt.

@@ -1,4 +1,4 @@
-"""Pfad-Hilfen: Anwendungsverzeichnis, Schemaverzeichnis, Startordner des Öffnen-Dialogs."""
+"""Pfad-Hilfen: Anwendungsverzeichnis, Startordner des Öffnen-Dialogs."""
 from __future__ import annotations
 
 import os
@@ -25,18 +25,6 @@ def app_dir() -> Path:
                     return parent.parent
         return exe.parent
     return Path(__file__).resolve().parent.parent
-
-
-def schema_dir() -> Path:
-    """Ordner mit den XSD-Dateien (neben der Anwendung bzw. im Projekt)."""
-    candidates = [app_dir() / "schemas"]
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        candidates.append(Path(meipass) / "schemas")
-    for c in candidates:
-        if c.is_dir():
-            return c
-    return candidates[0]
 
 
 # ---------------------------------------------------------------- Startordner

@@ -2,7 +2,7 @@
 
 Entpacken, Ordner beliebig ablegen. Die Datei `SEPA-Splitter.ini` muss **neben** der Anwendung liegen
 (macOS: neben `SEPA-Splitter.app`). Fehlt sie, legt das Programm eine kommentierte Standarddatei an.
-Eine separate Python-Installation ist nicht nötig. XSD-Dateien siehe `schemas/README.txt`.
+Eine separate Python-Installation ist nicht nötig.
 
 * **Windows 10/11 (x64):** `SEPA-Splitter.exe` starten.
 * **Linux (x86_64/aarch64):** `./SEPA-Splitter`. Benötigt glibc ≥ der Version des Build-Systems

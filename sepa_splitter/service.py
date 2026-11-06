@@ -53,12 +53,12 @@ def check_file(path: Path, cfg: Config, protocol: Protocol, progress: Progress =
     if progress:
         progress(5, "Datei wird gelesen und geprüft …")
     try:
-        doc = analyzer.analyze(path, True, True)
+        doc = analyzer.analyze(path, True)
     except Exception as e:
         protocol.log("ERROR", f"Prüfung fehlgeschlagen: {str(e).splitlines()[0] if str(e) else type(e).__name__}")
         raise
     protocol.log("INFO", f"pain-Version: {doc.version}; Transaktionen: {doc.total_tx}; "
-                         f"PmtInf-Blöcke: {len(doc.pmtinfs)}; Schema: {doc.schema_status}")
+                         f"PmtInf-Blöcke: {len(doc.pmtinfs)}")
     for i in doc.issues:
         protocol.log("ERROR" if i.level == "error" else "WARNING", i.text)
     plans: List[splitter.PartPlan] = []
@@ -125,7 +125,7 @@ def split_file(chk: CheckResult, cfg: Config, protocol: Protocol,
             if progress:
                 progress(int(60 + 20 * i / n), f"Prüfe Struktur von Teildatei {i + 1} von {n} …")
             try:
-                d2 = analyzer.analyze(tmp, True, True)
+                d2 = analyzer.analyze(tmp, True)
             except Exception as e:
                 structure_ok = False
                 messages.append(f"{chk.names[i].name}: {str(e).splitlines()[0]}")

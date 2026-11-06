@@ -1,7 +1,7 @@
 """Analyse und Prüfung einer SEPA-Lastschriftdatei (pain.008.001.xx).
 
 Ablauf: Rohbytes lesen -> Sicherheitsvorprüfung (kein DOCTYPE) -> lxml-Wohlgeformtheit ->
-Version über Namespace -> Strukturprüfung (eingebaut + optional XSD) ->
+Version über Namespace -> eingebaute Strukturprüfung ->
 positionsgenauer Elementbaum (xmlscan) -> Zählung/Summenprüfung.
 """
 from __future__ import annotations
@@ -17,7 +17,6 @@ from lxml import etree
 
 from . import xmlscan
 from .errors import InputError, UnsupportedVersionError, ValidationError, FidelityError
-from .paths import schema_dir
 
 SUPPORTED_VERSIONS = ("pain.008.001.02", "pain.008.001.08")
 _NS_RE = re.compile(r"^urn:iso:std:iso:20022:tech:xsd:(pain\.\d{3}\.\d{3}\.\d{2})$")
@@ -77,7 +76,6 @@ class SepaDocument:
     declared_nb: int
     declared_sum: Optional[Decimal]
     issues: List[Issue] = field(default_factory=list)
-    schema_status: str = "nicht geprüft"
     structure_ok: bool = False
     sums_ok: bool = False
 
@@ -195,23 +193,7 @@ def _builtin_structure_check(tree, ns: str, version: str, issues: List[Issue]) -
                 return
 
 
-def _xsd_check(tree, version: str, issues: List[Issue]) -> str:
-    xsd = schema_dir() / f"{version}.xsd"
-    if not xsd.is_file():
-        return "XSD-Datei fehlt – nur eingebaute Strukturprüfung"
-    try:
-        schema = etree.XMLSchema(etree.parse(str(xsd), parser=secure_parser()))
-    except (etree.XMLSchemaParseError, OSError, etree.XMLSyntaxError) as e:
-        issues.append(Issue("error", f"Die Schemadatei {xsd.name} ist nicht lesbar: {e}"))
-        return "Schemadatei defekt"
-    if schema.validate(tree):
-        return f"gültig gegen {version}.xsd"
-    for err in list(schema.error_log)[:20]:
-        issues.append(Issue("error", f"Schemafehler Zeile {err.line}: {err.message}"))
-    return f"UNGÜLTIG gegen {version}.xsd"
-
-
-def analyze(path: Path, validate_schema: bool = True, validate_control_sum: bool = True) -> SepaDocument:
+def analyze(path: Path, validate_control_sum: bool = True) -> SepaDocument:
     """Liest und prüft eine Datei. Wirft bei nicht verarbeitbaren Dateien eine Fehlerklasse,
     liefert sonst ein SepaDocument; fachliche Befunde stehen in ``doc.issues``."""
     path = Path(path)
@@ -241,11 +223,7 @@ def analyze(path: Path, validate_schema: bool = True, validate_control_sum: bool
 
     issues: List[Issue] = []
     _builtin_structure_check(tree, ns, version, issues)
-    structure_errors_before_xsd = len([i for i in issues if i.level == "error"])
-    schema_status = "nicht geprüft (ValidateSchema=false)"
-    if validate_schema:
-        schema_status = _xsd_check(tree, version, issues)
-    if structure_errors_before_xsd:
+    if any(i.level == "error" for i in issues):
         # Ohne gültige Grundstruktur ist keine Positionsanalyse sinnvoll.
         raise ValidationError("Die Struktur der Datei ist ungültig:\n" + "\n".join(
             f"• {i.text}" for i in issues if i.level == "error")[:3000])
@@ -353,10 +331,10 @@ def analyze(path: Path, validate_schema: bool = True, validate_control_sum: bool
         path=path, data=data, encoding=encoding, newline=newline_style(data), version=version, ns=ns,
         root=scan_root, grphdr=grphdr, msgid_node=msgid_node, msgid=msgid, nb_node=nb_node,
         ctrl_node=ctrl_node, pmtinfs=pmtinfs, currency=currency, total_tx=idx, total_sum=total,
-        declared_nb=declared_nb, declared_sum=declared_sum, issues=issues, schema_status=schema_status,
+        declared_nb=declared_nb, declared_sum=declared_sum, issues=issues,
         sums_ok=sums_ok)
     doc.structure_ok = not any(i.level == "error" and not i.text.startswith(("GrpHdr/NbOfTxs", "GrpHdr/CtrlSum", "PmtInf Nr."))
-                               for i in issues) and "UNGÜLTIG" not in schema_status
+                               for i in issues)
     return doc
 
 
