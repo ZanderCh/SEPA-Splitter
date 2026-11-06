@@ -1,0 +1,12 @@
+# Zeilenenden nie automatisch umwandeln (wichtig für Git unter Windows, core.autocrlf):
+# Die Beispieldateien müssen bytegenau erhalten bleiben (LF bzw. absichtlich CRLF),
+# das Linux/macOS-Build-Skript braucht LF.
+samples/*.xml   -text
+*.sh            text eol=lf
+*.py            text eol=lf
+*.md            text eol=lf
+*.ini           text eol=lf
+*.yml           text eol=lf
+*.png           binary
+*.ico           binary
+*.icns          binary
