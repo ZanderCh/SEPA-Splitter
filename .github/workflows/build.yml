@@ -30,9 +30,9 @@ jobs:
           - name: macOS-x86_64
             os: macos-15-intel
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -91,7 +91,7 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path dist\SEPA-Splitter-Windows -DestinationPath dist\SEPA-Splitter-Windows-x64.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: SEPA-Splitter-${{ matrix.name }}
           path: |
