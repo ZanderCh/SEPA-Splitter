@@ -12,7 +12,7 @@ from typing import Callable, List, Optional
 from . import analyzer, splitter, verifier
 from .config import Config
 from .errors import FidelityError, InputError, OutputError, ValidationError
-from .protocol import Protocol
+from .protocol import Protocol, format_amount
 
 Progress = Optional[Callable[[int, str], None]]
 
@@ -46,19 +46,35 @@ def output_names(src: Path, count: int, cfg: Config) -> List[Path]:
     return names
 
 
+def log_settings(protocol: Protocol, cfg: Config) -> None:
+    """DEBUG: verwendete INI und wirksame Einstellungen."""
+    protocol.log("DEBUG", f"INI-Datei: {cfg.ini_path}" + (" (neu angelegt)" if cfg.ini_created else ""))
+    protocol.log("DEBUG", f"Einstellungen: MaxTransactions={cfg.max_transactions}, OverwriteMode={cfg.overwrite_mode}, "
+                          f"FilenameSeparator=„{cfg.filename_separator}“, FilenameSuffixMode={cfg.suffix_mode}, "
+                          f"BasePath=„{cfg.base_path}“, NameScheme={cfg.name_scheme}, LogLevel={cfg.log_level}")
+
+
 def check_file(path: Path, cfg: Config, protocol: Protocol, progress: Progress = None) -> CheckResult:
     path = Path(path).expanduser()
     protocol.attach_directory(path.resolve().parent)
     protocol.log("INFO", f"Prüfe Datei „{path.name}“")
+    protocol.log("DEBUG", f"Vollständiger Pfad: {path.resolve()}")
     if progress:
         progress(5, "Datei wird gelesen und geprüft …")
     try:
         doc = analyzer.analyze(path, True)
     except Exception as e:
-        protocol.log("ERROR", f"Prüfung fehlgeschlagen: {str(e).splitlines()[0] if str(e) else type(e).__name__}")
+        protocol.log("ERROR", f"Prüfung von „{path.name}“ fehlgeschlagen: "
+                              f"{str(e).splitlines()[0] if str(e) else type(e).__name__}")
         raise
-    protocol.log("INFO", f"pain-Version: {doc.version}; Transaktionen: {doc.total_tx}; "
-                         f"PmtInf-Blöcke: {len(doc.pmtinfs)}")
+    protocol.log("ERGEBNIS", f"Datei „{path.name}“: {doc.total_tx} Transaktionen, "
+                             f"Gesamtsumme {format_amount(doc.total_sum, doc.currency)}")
+    protocol.log("INFO", f"pain-Version: {doc.version}; PmtInf-Blöcke: {len(doc.pmtinfs)}; "
+                         f"Zeilenumbruch: {doc.newline}; Kodierung: {doc.encoding}")
+    protocol.log("DEBUG", f"Größe: {len(doc.data)} Bytes; SHA-256: {hashlib.sha256(doc.data).hexdigest()}")
+    for n, p in enumerate(doc.pmtinfs, 1):
+        protocol.log("DEBUG", f"PmtInf Nr. {n}: PmtInfId „{p.id_text}“, {len(p.txs)} Transaktionen, "
+                              f"Fälligkeit {p.due_date}, Sequenztyp {p.seq_type}")
     for i in doc.issues:
         protocol.log("ERROR" if i.level == "error" else "WARNING", i.text)
     plans: List[splitter.PartPlan] = []
@@ -66,7 +82,11 @@ def check_file(path: Path, cfg: Config, protocol: Protocol, progress: Progress =
     if doc.ok:
         plans = splitter.make_plan(doc, cfg.max_transactions, cfg.suffix_mode)
         names = output_names(path.resolve(), len(plans), cfg) if plans else []
-        protocol.log("INFO", f"Aufteilung nötig: {'ja' if plans else 'nein'}; geplante Ausgabedateien: {len(plans)}")
+        protocol.log("INFO", f"Aufteilung nötig: {'ja' if plans else 'nein'} (Grenzwert {cfg.max_transactions}); "
+                             f"geplante Ausgabedateien: {len(plans)}")
+        for nm, pl in zip(names, plans):
+            protocol.log("DEBUG", f"Geplant: {nm.name}: Transaktionen {pl.lo + 1}–{pl.hi}, MsgId „{pl.msgid}“, "
+                                  f"PmtInfId {', '.join(f'„{x}“' for x in pl.pmtinf_ids.values())}")
     if progress:
         progress(100, "Prüfung abgeschlossen.")
     return CheckResult(doc, plans, names, hashlib.sha256(doc.data).hexdigest())
@@ -121,6 +141,7 @@ def split_file(chk: CheckResult, cfg: Config, protocol: Protocol,
                 raise OutputError(f"Schreibfehler: {e.strerror or e}") from e
         # 1) SEPA-Strukturprüfung der erzeugten Dateien
         structure_ok, messages = True, []
+        written: List[tuple] = []          # (Name, Transaktionen, Summe) – aus den erzeugten Dateien gelesen
         for i, tmp in enumerate(temps):
             if progress:
                 progress(int(60 + 20 * i / n), f"Prüfe Struktur von Teildatei {i + 1} von {n} …")
@@ -130,6 +151,7 @@ def split_file(chk: CheckResult, cfg: Config, protocol: Protocol,
                 structure_ok = False
                 messages.append(f"{chk.names[i].name}: {str(e).splitlines()[0]}")
                 continue
+            written.append((chk.names[i].name, d2.total_tx, d2.total_sum))
             if not d2.ok or d2.version != doc.version or d2.total_tx > cfg.max_transactions:
                 structure_ok = False
                 messages += [f"{chk.names[i].name}: {x.text}" for x in d2.errors]
@@ -167,6 +189,16 @@ def split_file(chk: CheckResult, cfg: Config, protocol: Protocol,
         if progress:
             progress(100, "Fertig.")
         protocol.log("INFO", f"Aufteilung erfolgreich: {len(finals)} Dateien ({', '.join(str(p.count) for p in chk.plans)} Transaktionen)")
+        ccy = doc.currency
+        for name, cnt, total in written:
+            protocol.log("ERGEBNIS", f"Erzeugt „{name}“: {cnt} Transaktionen, Summe {format_amount(total, ccy)}")
+        sum_cnt = sum(c for _, c, _ in written)
+        sum_amt = sum((t for _, _, t in written), Decimal(0))
+        same = sum_cnt == doc.total_tx and sum_amt == doc.total_sum
+        protocol.log("ERGEBNIS" if same else "ERROR",
+                     f"Summe aller {len(written)} Teildateien: {sum_cnt} Transaktionen, {format_amount(sum_amt, ccy)} – "
+                     + ("stimmt mit dem Original überein" if same else
+                        f"WEICHT vom Original ab ({doc.total_tx} Transaktionen, {format_amount(doc.total_sum, ccy)})"))
         return SplitResult(finals, structure_ok, vr.fidelity_ok, messages, vr.changes)
     except Exception as e:
         for f in finals:

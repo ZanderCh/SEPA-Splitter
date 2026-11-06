@@ -3,11 +3,20 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import List, Optional
 
 _IBAN = re.compile(r"\b([A-Z]{2}\d{2})[A-Z0-9 ]{8,30}\b")
-LEVELS = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40}
+LEVELS = {"DEBUG": 10, "INFO": 20, "WARNING": 30, "ERROR": 40,
+          "ERGEBNIS": 100}   # Ergebniszeilen (Datei, Teildateien, Summen): unabhängig von LogLevel immer
+
+
+def format_amount(v: Decimal, ccy: str = "") -> str:
+    """Betrag in deutscher Schreibweise, mindestens 2 Nachkommastellen, keine Rundung (z. B. 97.940,00 EUR)."""
+    places = max(2, -v.as_tuple().exponent if v.as_tuple().exponent < 0 else 0)
+    s = f"{v:,.{places}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{s} {ccy}".strip()
 
 
 def mask(text: str) -> str:
@@ -24,7 +33,8 @@ class Protocol:
         self._dir: Optional[Path] = None
         self._flushed = 0
         self.write_error: str = ""
-        self.log("INFO", "Programmstart")
+        from . import __version__
+        self.log("INFO", f"Programmstart (SEPA-Splitter {__version__})")
 
     def attach_directory(self, directory: Path) -> None:
         self._dir = Path(directory)

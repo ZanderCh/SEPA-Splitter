@@ -497,10 +497,59 @@ class TestProtocol(Base):
         chk = service.check_file(p, cfg, pr)
         service.split_file(chk, cfg, pr)
         txt = (self.dir / "SEPA-Splitter.log").read_text(encoding="utf-8")
-        for needle in ("Programmstart", "pain.008.001.02", "Transaktionen: 1200", "Aufteilung nötig: ja",
+        for needle in ("Programmstart", "pain.008.001.02", "1200 Transaktionen", "Aufteilung nötig: ja",
                        "Originaltreue-Prüfung: erfolgreich", "Aufteilung erfolgreich"):
             self.assertIn(needle, txt)
         self.assertNotIn("DE00", txt)
+
+
+    def _log_for(self, level: str) -> str:
+        data = samplegen.generate(counts=(1200, 800))
+        p = self.write(data)
+        log = self.dir / "SEPA-Splitter.log"
+        if log.exists():
+            log.unlink()
+        for f in self.dir.glob("SEPA_Lastschriften_*.xml"):
+            f.unlink()
+        pr = Protocol(True, level, "SEPA-Splitter.log")
+        cfg = Config()
+        service.log_settings(pr, cfg)
+        chk = service.check_file(p, cfg, pr)
+        res = service.split_file(chk, cfg, pr)
+        self.assertEqual(len(res.files), 3)
+        return log.read_text(encoding="utf-8")
+
+    def test_result_lines_always_logged(self):
+        doc = analyzer.analyze(self.write(samplegen.generate(counts=(1200, 800))))
+        total = protocol_amount(doc.total_sum)
+        for level in ("ERROR", "WARNING", "INFO", "DEBUG"):
+            txt = self._log_for(level)
+            res = [l for l in txt.splitlines() if "[ERGEBNIS]" in l]
+            self.assertIn(f"Datei „SEPA_Lastschriften.xml“: 2000 Transaktionen, Gesamtsumme {total} EUR", res[0], level)
+            self.assertEqual(len(res), 1 + 3 + 1, level)
+            for suf, cnt in (("a", 667), ("b", 667), ("c", 666)):
+                self.assertTrue(any(f"Erzeugt „SEPA_Lastschriften_{suf}.xml“: {cnt} Transaktionen, Summe " in l
+                                    for l in res), (level, suf))
+            self.assertIn(f"Summe aller 3 Teildateien: 2000 Transaktionen, {total} EUR – stimmt mit dem Original überein",
+                          res[-1], level)
+            self.assertNotIn("DE00", txt)
+
+    def test_log_levels_are_cumulative(self):
+        counts = {}
+        for level in ("ERROR", "WARNING", "INFO", "DEBUG"):
+            txt = self._log_for(level)
+            counts[level] = len(txt.splitlines())
+            self.assertEqual("[INFO]" in txt, level in ("INFO", "DEBUG"), level)
+            self.assertEqual("SHA-256" in txt, level == "DEBUG", level)
+            self.assertEqual("MsgId" in txt, level == "DEBUG", level)
+        self.assertLessEqual(counts["ERROR"], counts["WARNING"])
+        self.assertLess(counts["WARNING"], counts["INFO"])
+        self.assertLess(counts["INFO"], counts["DEBUG"])
+
+
+def protocol_amount(v: Decimal) -> str:
+    from sepa_splitter.protocol import format_amount
+    return format_amount(v)
 
 
 if __name__ == "__main__":

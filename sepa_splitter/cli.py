@@ -22,6 +22,9 @@ def main(argv=None) -> int:
     for p in cfg.problems:
         print("Hinweis:", p, file=sys.stderr)
     proto = Protocol(cfg.log_enabled, cfg.log_level, cfg.log_file)
+    for p in cfg.problems:
+        proto.log("WARNING", p)
+    service.log_settings(proto, cfg)
     try:
         chk = service.check_file(Path(a.datei), cfg, proto)
         d = chk.doc

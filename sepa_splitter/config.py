@@ -123,7 +123,23 @@ ShowPreview = true
 # Protokoll schreiben. Werte: true, false. Default: true
 Enabled = true
 
-# Protokollstufe. Werte: DEBUG, INFO, WARNING, ERROR. Default: INFO
+# Protokollstufe. Jede Stufe enthält alles der vorherigen und zusätzlich:
+#   ERROR   = nur Fehler: Prüffehler der Datei, fehlgeschlagene Struktur- oder
+#             Originaltreue-Prüfung, Abbrüche (z. B. Schreibfehler)
+#   WARNING = zusätzlich Hinweise: ungültige INI-Werte, nicht vorhandener Startordner
+#   INFO    = zusätzlich der Ablauf: Programmstart mit Version, pain-Version,
+#             Anzahl PmtInf-Blöcke, Zeilenumbruch/Kodierung, Aufteilung nötig ja/nein,
+#             Ergebnis von Struktur- und Originaltreue-Prüfung
+#   DEBUG   = zusätzlich Details: verwendete INI und wirksame Einstellungen,
+#             vollständiger Pfad, Dateigröße und SHA-256-Prüfsumme des Originals,
+#             je PmtInf-Block Kennung/Anzahl/Fälligkeit/Sequenztyp, je Teildatei
+#             Transaktionsbereich und neue MsgId/PmtInfId
+# Unabhängig von der Stufe stehen IMMER im Protokoll (Kennzeichnung ERGEBNIS):
+#   bearbeitete Datei mit Anzahl Transaktionen und Gesamtsumme; nach dem Aufteilen
+#   jede erzeugte Datei mit Anzahl Transaktionen und Summe sowie die Summe aller
+#   Teildateien mit Abgleich gegen das Original.
+# Vollständige IBANs werden nie protokolliert.
+# Werte: ERROR, WARNING, INFO, DEBUG. Default: INFO
 LogLevel = INFO
 
 # Dateiname des Protokolls (nur Name, kein Pfad). Default: SEPA-Splitter.log
@@ -249,7 +265,7 @@ def load_config(ini_path: Path | None = None) -> Config:
     cfg.window_height = integer("GUI", "WindowHeight", 680, 480, 3000)
     cfg.show_preview = boolean("GUI", "ShowPreview", True)
     cfg.log_enabled = boolean("Logging", "Enabled", True)
-    cfg.log_level = choice("Logging", "LogLevel", "INFO", ("DEBUG", "INFO", "WARNING", "ERROR"), upper=True)
+    cfg.log_level = choice("Logging", "LogLevel", "INFO", ("ERROR", "WARNING", "INFO", "DEBUG"), upper=True)
     lf = get("Logging", "LogFile") or "SEPA-Splitter.log"
     if "/" in lf or "\\" in lf or lf in (".", ".."):
         cfg.problems.append("[Logging] LogFile darf nur ein Dateiname sein. Standard: SEPA-Splitter.log")

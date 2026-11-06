@@ -94,6 +94,7 @@ class MainWindow(QMainWindow):
         self._build()
         for p in cfg.problems:
             self.proto.log("WARNING", p)
+        service.log_settings(self.proto, cfg)
         if cfg.problems:
             QMessageBox.warning(self, "Hinweis zur Konfiguration", "\n\n".join(cfg.problems))
         if cfg.ini_created:
