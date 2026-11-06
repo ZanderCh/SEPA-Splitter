@@ -1,0 +1,730 @@
+# Entwicklungs-Prompt: SEPA-Splitter
+
+## 1. Projektziel
+
+Entwickle eine vollständige, produktionsreife, portable Desktop-Anwendung mit dem Namen **SEPA-Splitter** für Windows, Linux und macOS.
+
+Die Anwendung verarbeitet SEPA-Lastschriftdateien der Formatfamilie `pain.008.001.xx`.
+
+Die Sparkasse akzeptiert über ihre Weboberfläche maximal 999 Lastschrifttransaktionen pro Datei. Die vorhandene Finanzsoftware erzeugt teilweise Dateien mit mehr als 1.000 oder 2.000 Transaktionen.
+
+Der SEPA-Splitter soll:
+
+1. SEPA-XML-Dateien einlesen und prüfen.
+2. Die tatsächliche Anzahl der Lastschrifttransaktionen ermitteln.
+3. Feststellen, ob die konfigurierte Maximalanzahl überschritten wird.
+4. Dateien bei Bedarf in möglichst gleich große Teildateien aufteilen.
+5. Die erforderlichen Summen- und Identifikationsfelder korrekt anpassen.
+6. Die ursprüngliche pain-Version und die versionsspezifische XML-Struktur ausnahmslos erhalten.
+7. Sämtliche unveränderten XML-Abschnitte möglichst bytegenau übernehmen.
+8. Die Teildateien im Verzeichnis der Originaldatei speichern.
+9. Eine grafische Benutzeroberfläche und eine externe INI-Konfiguration bereitstellen.
+
+**Oberstes Entwicklungsprinzip:** Die Anwendung darf keine Zahlungsdaten verlieren, duplizieren oder unbeabsichtigt verändern. Fachliche Korrektheit und Originaltreue haben Vorrang vor Geschwindigkeit und Komfort.
+
+## 2. Technische Architektur und Portabilität
+
+Bevorzugte Technologien:
+
+- Python 3
+- PySide6 für die grafische Oberfläche
+- lxml für sichere XML-Analyse und Schema-Validierung
+- decimal.Decimal für exakte Geldbeträge
+- PyInstaller oder Nuitka für portable Anwendungen
+- configparser für die INI-Konfiguration
+- pytest für automatisierte Tests
+
+Eine andere Technologie ist zulässig, wenn sie nachweislich bessere Voraussetzungen für eine originalgetreue XML-Verarbeitung und portable Bereitstellung bietet.
+
+Die Anwendung muss unter Windows 10/11, gängigen 64-Bit-Linux-Distributionen und macOS für Intel und Apple Silicon bereitgestellt werden.
+
+Für jedes Betriebssystem beziehungsweise jede erforderliche Architektur ist ein eigenes ausführbares Paket zu erstellen. Eine identische Binärdatei für alle Betriebssysteme ist nicht erforderlich. Die einzelnen Module sollen für alle Architekturen, sofern machbar, identisch sein. Eventuelle Besonderheiten der Architektur sind zu berücksichtigen.
+
+Die Pakete müssen die benötigte Anwendungslaufzeit und Bibliotheken enthalten. Eine separate Python-Installation darf nicht notwendig sein. 
+
+Die Anwendung arbeitet vollständig offline, ohne Cloud, Telemetrie oder externe Datenübertragung.
+
+## 3. Verbindliche Originaltreue der XML-Verarbeitung
+
+### 3.1 Grundprinzip
+
+Der SEPA-Splitter darf nicht einfach die SEPA-Daten auslesen und anschließend eine vollständig neu formatierte XML-Datei erzeugen.
+
+Stattdessen muss er die Originaldatei strukturorientiert analysieren und ausschließlich die für die Aufteilung notwendigen Änderungen durchführen.
+
+Die erzeugten Dateien sollen sich mit Meld unter Linux, WinMerge unter Windows oder vergleichbaren Diff-Programmen leicht mit dem Original vergleichen lassen.
+
+### 3.2 Unveränderliche Eigenschaften
+
+Folgende Eigenschaften müssen erhalten bleiben:
+
+- Ursprüngliche pain-Version und XML-Namespaces
+- XML-Deklaration und Encoding
+- Elementnamen und versionsspezifische Elementreihenfolge
+- Namespace-Präfixe und Deklarationen
+- Vorhandene Attribute und deren Reihenfolge
+- Zeilenumbrüche (LF oder CRLF)
+- Einrückungen und Leerzeichen
+- XML-Kommentare
+- Vorhandene optionale Elemente
+- Formatierung von Datumsangaben und Beträgen
+- Reihenfolge der ursprünglichen Transaktionen
+- Sämtliche zahlungsrelevanten Inhalte
+
+Unveränderte XML-Abschnitte müssen nach Möglichkeit bytegenau übernommen werden.
+
+Ein automatisches Pretty Printing oder eine globale Neuformatierung ist verboten.
+
+### 3.3 Ausschließlich zulässige Änderungen
+
+Bei der Aufteilung dürfen ausschließlich folgende Änderungen erfolgen:
+
+1. Entfernen der Transaktionsblöcke, die nicht in die jeweilige Teildatei gehören.
+2. Entfernen vollständig leer gewordener PmtInf-Blöcke.
+3. Anpassung von `GrpHdr/NbOfTxs`.
+4. Anpassung von `GrpHdr/CtrlSum`.
+5. Anpassung von `PmtInf/NbOfTxs`, soweit vorhanden oder erforderlich.
+6. Anpassung von `PmtInf/CtrlSum`, soweit vorhanden oder erforderlich.
+7. Eindeutige Anpassung von `GrpHdr/MsgId`.
+8. Eindeutige Anpassung von `PmtInf/PmtInfId`.
+
+Andere Änderungen sind nicht zulässig, sofern sie nicht aufgrund der konkreten pain-Version zwingend erforderlich und ausdrücklich dokumentiert sind.
+
+### 3.4 Technische Umsetzung
+
+Verwende eine sichere, strukturorientierte XML-Analyse kombiniert mit einer textbewahrenden Verarbeitung der Originaldatei.
+
+Die Anwendung muss XML-Elemente anhand ihrer tatsächlichen Struktur und Namespaces erkennen. Einfache globale Textersetzungen oder reguläre Ausdrücke als alleiniger XML-Parser sind unzulässig.
+
+Für die Originaltreue ist eine Strategie mit Quelltextpositionen beziehungsweise Bytebereichen vorzusehen:
+
+- XML-Struktur sicher analysieren.
+- Relevante Originalabschnitte identifizieren.
+- Vollständige Transaktions- und PmtInf-Bereiche kontrolliert übernehmen oder entfernen.
+- Ausschließlich notwendige Feldwerte gezielt ersetzen.
+- Alle anderen Bereiche unverändert übernehmen.
+
+Die korrekte Behandlung von Whitespace, Kommentaren, Namespace-Kontext und Zeichenkodierungen muss Bestandteil der Implementierung sein.
+
+Wenn die Originaltreue für eine Datei nicht zuverlässig gewährleistet werden kann, muss die Verarbeitung mit einer verständlichen Fehlermeldung abbrechen.
+
+## 4. Unterstützung der pain-Versionen
+
+Die konkrete Version muss anhand des XML-Namespace erkannt werden.
+
+Unterstütze insbesondere:
+
+- pain.008.001.02
+- pain.008.001.08
+- weitere Versionen nach expliziter Implementierung und Prüfung
+
+Eine unbekannte Version darf nicht spekulativ verarbeitet werden.
+
+**Die ursprüngliche pain-Version muss in jeder Ausgabedatei unverändert erhalten bleiben.**
+
+Dies betrifft auch alle versionsabhängigen Unterschiede innerhalb der XML-Blöcke.
+
+Eine Konvertierung zwischen pain-Versionen ist verboten.
+
+Die Anwendung muss die zur jeweiligen Version gehörenden XML-Schemata und die implementierten fachlichen Prüfregeln verwenden.
+
+## 5. Prüfung der Eingabedatei
+
+Beim Einlesen muss die Anwendung:
+
+1. Existenz und Lesbarkeit prüfen.
+2. XML-Wohlgeformtheit prüfen.
+3. Die pain-Version erkennen.
+4. Die XML-Struktur und das passende Schema prüfen.
+5. Alle PmtInf-Blöcke analysieren.
+6. Alle `DrctDbtTxInf`-Elemente zählen.
+7. Vorhandene `NbOfTxs`-Werte prüfen.
+8. Vorhandene `CtrlSum`-Werte nachrechnen.
+9. Die Fälligkeiten und relevanten Zahlungsgruppeneigenschaften erfassen.
+10. Die Notwendigkeit einer Aufteilung feststellen.
+
+Maßgeblich ist die Gesamtanzahl aller Transaktionen innerhalb der Datei, nicht die Anzahl der PmtInf-Blöcke.
+
+Wenn die Anzahl kleiner oder gleich dem konfigurierten Grenzwert ist, wird keine Ausgabedatei erzeugt und das Original nicht verändert.
+
+## 6. Gleichmäßige Aufteilung
+
+Standardmäßig dürfen maximal 999 Transaktionen in einer Ausgabedatei enthalten sein.
+
+Berechnung:
+
+`Dateianzahl = ceil(Gesamttransaktionen / MaxTransactions)`
+
+Die Transaktionen müssen möglichst gleichmäßig auf die erforderliche Anzahl von Dateien verteilt werden.
+
+| Transaktionen | Aufteilung |
+|---|---|
+| 999 | Keine Aufteilung |
+| 1.000 | 500 / 500 |
+| 1.500 | 750 / 750 |
+| 1.998 | 999 / 999 |
+| 1.999 | 667 / 666 / 666 |
+| 2.000 | 667 / 667 / 666 |
+| 2.500 | 834 / 833 / 833 |
+| 3.000 | 750 / 750 / 750 / 750 |
+
+Die Reihenfolge der Transaktionen ist zu erhalten.
+
+Mehrere PmtInf-Blöcke müssen unterstützt werden.
+
+Unterschiedliche Fälligkeiten, Sequenztypen, Gläubigerinformationen und andere Eigenschaften dürfen nicht vermischt oder verändert werden.
+
+Ein ursprünglicher PmtInf-Block darf bei Bedarf auf mehrere Dateien verteilt werden. Seine Metadaten müssen in den entsprechenden Ausgabedateien unverändert übernommen werden, abgesehen von den notwendigen Summen- und Identifikationsfeldern.
+
+## 7. Kontrollsummen und Identifikationen
+
+### 7.1 Transaktionsanzahlen
+
+Aktualisiere:
+
+- `GrpHdr/NbOfTxs`
+- `PmtInf/NbOfTxs`, soweit vorhanden oder erforderlich
+
+### 7.2 Kontrollsummen
+
+Aktualisiere:
+
+- `GrpHdr/CtrlSum`
+- `PmtInf/CtrlSum`, soweit vorhanden oder erforderlich
+
+Berechne die Summen ausschließlich mit exakter Dezimalarithmetik anhand der zugehörigen `InstdAmt`-Werte.
+
+Die ursprüngliche Formatversion und deren Schemaanforderungen sind einzuhalten.
+
+### 7.3 Payment Information Identification
+
+Die `PmtInfId` muss für die erzeugten Zahlungsgruppen eindeutig sein.
+
+Beispiel:
+
+Original: `SAMMELLASTSCHRIFT20261106`
+
+Ausgabe:
+
+- `SAMMELLASTSCHRIFT20261106a`
+- `SAMMELLASTSCHRIFT20261106b`
+- `SAMMELLASTSCHRIFT20261106c`
+
+Die zulässige Feldlänge, der Zeichensatz und die fachlichen Vorgaben sind einzuhalten.
+
+Bei mehreren PmtInf-Blöcken muss eine Kollision der erzeugten Identifikationen ausgeschlossen werden.
+
+Falls das Anhängen des Suffixes die zulässige Länge überschreitet, ist eine deterministische, gültige und möglichst gut nachvollziehbare Ersatzkennung zu bilden.
+
+### 7.4 Message Identification
+
+Die `GrpHdr/MsgId` muss für jede Ausgabedatei eindeutig angepasst werden.
+
+Auch hier sind nach Möglichkeit die Suffixe `a`, `b`, `c` usw. zu verwenden.
+
+### 7.5 Unveränderliche Transaktionsdaten
+
+Folgende Informationen dürfen nicht geändert werden:
+
+- IBAN und Name des Zahlungspflichtigen
+- Mandatsreferenz und Mandatsdatum
+- Betrag und Währung
+- Verwendungszweck
+- EndToEndId
+- Sequenztyp
+- Fälligkeitsdatum
+- Gläubigerangaben
+- Weitere zahlungsrelevante Daten
+
+## 8. Ausgabedateien
+
+Die Teildateien werden grundsätzlich im selben Verzeichnis wie die Originaldatei abgelegt.
+
+Beispiel:
+
+Original: `SEPA_Lastschriften.xml`
+
+Ausgabe:
+
+- `SEPA_Lastschriften_a.xml`
+- `SEPA_Lastschriften_b.xml`
+- `SEPA_Lastschriften_c.xml`
+
+Ab mehr als 26 Dateien wird die Folge mit `aa`, `ab`, `ac` usw. fortgesetzt.
+
+Das Original darf niemals überschrieben oder verändert werden.
+
+Existierende Ausgabedateien dürfen nicht unbemerkt überschrieben werden.
+
+Das Verhalten ist über die INI-Datei konfigurierbar.
+
+## 9. Grafische Benutzeroberfläche
+
+Erstelle eine moderne, übersichtliche und vollständig deutschsprachige Desktop-Oberfläche.
+
+### 9.1 Dateiauswahl
+
+Die Oberfläche muss folgende Funktionen bereitstellen:
+
+- Eingabefeld für den vollständigen Dateipfad
+- Schaltfläche "Datei auswählen"
+- Drag-and-drop für SEPA-XML-Dateien
+- Schaltfläche "Datei prüfen"
+- Schaltfläche "Datei aufteilen"
+- Schaltfläche "Ausgabeordner öffnen"
+- Schaltfläche "Protokoll anzeigen"
+- Schaltfläche "Beenden"
+
+### 9.2 Standardpfad des Öffnen-Dialogs
+
+Der Dateiauswahldialog muss beim ersten Öffnen den in der INI-Datei definierten `BasePath` verwenden.
+Dieser wird um das aktuelle Jahr und das zu berechnende Quartal ergänzt.
+
+Dieser Pfad ist der Standardvorgabepfad zum Öffnen der zu bearbeitenden SEPA-Dateien.
+
+Beispiel:
+
+`BasePath = /home/user/verein/Lastschriften`
+Dann wäre das zu öffnende Verzeichnis tatsächlich /home/user/verein/Lastschriften/[jjjj]/[Qn] oder [Mnn], wobei jjjj sich aus dem Jahr des aktuellen Datums ergibt.
+Das notwendige Quartal, bzw. der Monat errechnet sich ebenfalls aus dem Tagesdatum. Die Festlegung des Schemas erfolgt in der INI-Datei.
+
+Unter Windows, Linux und MacOS sind entsprechend plattformgerechte Pfade zu verwenden.
+
+Der BasePath beeinflusst ausschließlich den Startordner des Dateiauswahldialogs. Er verändert nicht den Ausgabeort der Teildateien.
+
+Die Teildateien werden weiterhin im Verzeichnis der ausgewählten Originaldatei gespeichert.
+
+Falls `BasePath` nicht existiert oder nicht lesbar ist, muss die Anwendung einen geeigneten Ersatzpfad verwenden und eine verständliche Meldung anzeigen.
+
+Optional darf der zuletzt verwendete Ordner gespeichert werden. Ob dieser den BasePath beim nächsten Programmstart übersteuern darf, muss über die INI-Datei konfigurierbar sein.
+
+### 9.3 Dateifilter
+
+Der Öffnen-Dialog darf standardmäßig nur XML-Dateien anzeigen.
+
+Der voreingestellte Dateifilter lautet:
+
+`SEPA-XML-Dateien (*.xml)`
+
+Optional kann zusätzlich ein Filter:
+
+`Alle Dateien (*)`
+
+angeboten werden.
+
+Der XML-Filter muss beim Öffnen des Dialogs immer vorausgewählt sein.
+
+Die Filterung erfolgt unabhängig von Groß- und Kleinschreibung, soweit das Betriebssystem dies unterstützt.
+
+Die Auswahl einer Datei mit XML-Endung ersetzt nicht die anschließende inhaltliche SEPA-Validierung.
+
+### 9.4 Dateiinformationen
+
+Zeige nach der Prüfung:
+
+- Dateiname und Dateipfad
+- Dateigröße
+- Erkannte pain-Version
+- Gesamtanzahl der Transaktionen
+- Anzahl der PmtInf-Blöcke
+- Ursprüngliche Kontrollsumme
+- Maximal zulässige Transaktionsanzahl
+- Ergebnis der Strukturprüfung
+- Ergebnis der Summenprüfung
+
+### 9.5 Vorschau
+
+Vor der Aufteilung muss eine Tabelle mit den geplanten Ausgabedateien erscheinen.
+
+Beispiel:
+
+| Datei | Transaktionen | Kontrollsumme |
+|---|---:|---:|
+| SEPA_a.xml | 667 | 125.430,50 EUR |
+| SEPA_b.xml | 667 | 119.220,00 EUR |
+| SEPA_c.xml | 666 | 121.850,25 EUR |
+
+Die Aufteilung erfolgt erst nach ausdrücklicher Bestätigung.
+
+### 9.6 Fortschritt und Fehlermeldungen
+
+Die Verarbeitung muss im Hintergrund erfolgen, damit die Oberfläche bedienbar bleibt. Ein Fortschrittsbalken soll den Fortschritt der Verarbeitung anzeigen.
+
+Fehler müssen verständlich beschrieben werden.
+
+## 10. INI-Konfiguration
+
+Die Anwendung muss die Datei `SEPA-Splitter.ini` aus dem Verzeichnis der ausführbaren Anwendung laden.
+
+Das aktuelle Arbeitsverzeichnis darf nicht mit dem Anwendungsverzeichnis verwechselt werden.
+
+Die INI-Datei ist die zentrale Konfigurationsquelle. 
+
+Beispiel:
+
+```ini
+# ------------------------------------------------------------
+# Generelle Angaben
+# ------------------------------------------------------------
+[General]
+# maximale Transaktionen je Teildatei, Mindestgröße 10
+MaxTransactions = 999
+CheckOnLoad = true
+
+# Auf Bestätigung für das Splitten warten
+ConfirmBeforeSplit = true
+
+# ------------------------------------------------------------
+# Pfad Festlegung
+# ------------------------------------------------------------
+[Paths]
+# ------------------------------------------------------------
+# BASIS-PFAD
+# ------------------------------------------------------------
+# Hauptordner für SEPA-Dateien. Unterhalb ergänzt das Programm
+# automatisch das aktuelle Jahr und Quartal.
+# Beispiel: basePath=/home/user/Verein
+# Ergebnis: /home/user/Verein/2025/Q3
+# Default: ~/Verein
+BasePath = 
+
+# ------------------------------------------------------------
+# MERKEN LETZTES GEÖFFNETES VERZEICHNIS
+# ------------------------------------------------------------
+# Letztes geöffnets Verzeichnis merken
+# true = ja, merken
+# false = nein, immer Basis-Pfad plus Namensschema öffnen
+# Default: true
+RememberLastDirectory = true
+
+# ------------------------------------------------------------
+# LETZTE GEÖFFNETES VERZEICHNIS ÜBERSCHREIBT BASIS-PFAD
+# ------------------------------------------------------------
+# Letztes geöffnets und gemerktes Verzeichnis überscheibt den 
+# Basis-Pfad
+# false = nein, immer Basis-Pfad plus Namensschema öffnen
+# true = ja, merken
+# Default: false
+LastDirectoryOverridesBasePath = false
+
+# ------------------------------------------------------------
+# NAMENSSCHEMA ZUR ERGÄNZUNG DES BASIS-PFADES
+# ------------------------------------------------------------
+# Beschreibt die weiteren Unterverzeichnisse unterhalb des
+# Basis-Pfades. Die Notation erfolgt in der für die Laufzeit-
+# Umgebung vorgegebenen Form. Unter Windows also mit \,
+# unter Linux und MacOS mit /.
+# Immer in der Form Jahr plus weiteren Datumsbestandteil.
+# Dabei kann das Jahr zwei- oder vierstellig sein.
+# Über Qn oder Mnn wird darüber hinaus das aktuelle Quartal
+# oder der aktuelle Monat einbezogen.
+# Gültige Angaben sind JJJJ/Qn, JJJJ/Mnn, JJ/Mnn, JJ/Qn, aber auch
+# JJJJQn oder JJQn etc. Letztere Beispiele sind ohne Unterverzeichnisse 
+# unterhalb des Jahres
+# Default: JJJJ/Qn, d.h. das vierstellige Jahr und das aktuelle 
+# Quartal
+NameScheme = JJJJ/Qn
+
+[Files]
+OutputDirectory = same_as_source
+FilenameSeparator = _
+FilenameSuffixMode = letters
+OverwriteMode = ask
+PreserveOriginal = true
+
+[SEPA]
+ValidateXML = true
+ValidateSchema = true
+ValidateControlSum = true
+UpdateMessageId = true
+UpdatePaymentInfoId = true
+PreservePainVersion = true
+PreserveOriginalFormatting = true
+VerifyOriginalIntegrity = true
+StrictMode = true
+
+[GUI]
+WindowWidth = 950
+WindowHeight = 680
+ShowPreview = true
+
+[Logging]
+Enabled = true
+LogLevel = INFO
+LogFile = SEPA-Splitter.log
+```
+
+### 10.1 BasePath
+
+Der Parameter `BasePath` zusammen mit dem Namensschema definiert den Startordner des Öffnen-Dialogs.
+
+Ist der Parameter leer, soll das Benutzerverzeichnis als Standard verwendet werden.
+
+Relative Pfade sind relativ zum Homeverzeichnis des Benutzers aufzulösen.
+
+### 10.2 Fehlende INI-Datei
+
+Falls die INI-Datei fehlt, soll eine kommentierte Standardkonfiguration neben der Anwendung erstellt werden, sofern dort Schreibrechte bestehen.
+Einige wenige Beispiele für Kommentare sind im Beispiel mit angegeben, den Rest entsprechend ergänzen, Mögliche fixe Werte, Beispiele und Default-Werte
+immer mit ausgeben.
+
+Andernfalls muss eine verständliche Fehlermeldung erscheinen.
+
+### 10.3 Ungültige Konfiguration
+
+Ungültige Werte müssen erkannt und gemeldet werden.
+
+Sicherheitsrelevante Grundregeln, insbesondere der Schutz des Originals, die Originaltreue und die korrekte Validierung, dürfen nicht durch INI-Einstellungen außer Kraft gesetzt werden.
+
+## 11. Automatische Originaltreue-Prüfung
+
+Nach der Aufteilung muss eine unabhängige Prüfroutine ausgeführt werden.
+
+Diese muss feststellen:
+
+1. Alle ursprünglichen Transaktionen sind exakt einmal vorhanden.
+2. Kein ursprünglicher Transaktionsblock wurde inhaltlich verändert.
+3. Die ursprüngliche pain-Version ist erhalten.
+4. Die versionsspezifische XML-Struktur ist erhalten.
+5. Die Summen- und Anzahlfelder sind korrekt.
+6. Die erzeugten Identifikationen sind eindeutig und zulässig.
+7. Die unveränderten XML-Bereiche stimmen möglichst bytegenau mit den Originalbereichen überein.
+8. Alle Unterschiede lassen sich auf die ausdrücklich erlaubten Änderungen zurückführen.
+
+Die Prüfroutine muss unabhängig vom Aufteilungsalgorithmus implementiert sein.
+
+Eine bloße Überprüfung der Transaktionsanzahl und Kontrollsumme ist nicht ausreichend.
+
+### 11.1 Prüfstatus in der Oberfläche
+
+Zeige nach der Verarbeitung getrennte Ergebnisse:
+
+**SEPA-Strukturprüfung erfolgreich**
+
+Die erzeugten Dateien erfüllen die implementierten XML-, Schema- und fachlichen Prüfregeln.
+
+**Originaltreue erfolgreich geprüft**
+
+Alle übernommenen Transaktionsblöcke sind unverändert. Sämtliche übrigen Unterschiede sind dokumentiert und zulässig.
+
+Eine bankseitige Annahme durch die Sparkasse darf daraus nicht automatisch abgeleitet werden.
+
+## 12. Sicherheit und Datenschutz
+
+Die Anwendung verarbeitet sensible Bankdaten.
+
+Daher gelten folgende Anforderungen:
+
+- Vollständig offline
+- Keine Cloud-Anbindung
+- Keine Telemetrie
+- Keine Übertragung von Bankdaten
+- Kein Protokollieren vollständiger IBANs
+- Keine Speicherung personenbezogener Zahlungsdaten in Logs
+- Sicheres XML-Parsing ohne externe Entitäten
+- Schutz gegen XXE-Angriffe
+- Keine unbemerkte Änderung des Originals
+- Keine unvollständigen Ausgabedateien
+- Keine stillschweigende Korrektur fehlerhafter Zahlungsdaten
+
+Die Ausgabe muss zunächst in temporären Dateien erzeugt und vollständig validiert werden.
+
+Erst nach erfolgreicher Prüfung dürfen die endgültigen Ausgabedateien bereitgestellt werden.
+
+Bei einem Fehler ist die Verarbeitung kontrolliert abzubrechen. Unvollständige Ergebnisse müssen entfernt oder eindeutig als ungültig gekennzeichnet werden.
+
+## 13. Protokollierung
+
+Erstelle ein lokales Protokoll mit:
+
+- Zeitpunkt des Programmstarts
+- Erkannter pain-Version
+- Anzahl der Transaktionen
+- Notwendigkeit der Aufteilung
+- Geplanter Anzahl der Ausgabedateien
+- Ergebnis der XML-Validierung
+- Ergebnis der Originaltreue-Prüfung
+- Erfolg oder Fehler der Verarbeitung
+
+Das Protokoll darf keine vollständigen Bank- oder Mandatsdaten enthalten.
+Das Protokoll wird bei den Dateien abgespeichert.
+
+## 14. Portable Programmpakete
+
+Erstelle folgende Pakete:
+
+**Windows**
+
+```text
+SEPA-Splitter-Windows/
+    SEPA-Splitter.exe
+    SEPA-Splitter.ini
+    [Laufzeitbibliotheken]
+```
+
+**Linux**
+
+```text
+SEPA-Splitter-Linux/
+    SEPA-Splitter
+    SEPA-Splitter.ini
+    [Laufzeitbibliotheken]
+```
+
+**macOS**
+
+```text
+SEPA-Splitter-macOS/
+    SEPA-Splitter.app
+    SEPA-Splitter.ini
+    [Laufzeitbibliotheken]
+```
+
+Die INI-Datei muss jeweils außerhalb der unveränderlichen Programmressourcen liegen und eindeutig gefunden werden.
+
+Für macOS sind gegebenenfalls Codesignierung und Notarisierung zu dokumentieren.
+
+Für Linux sind Systembibliotheken und Kompatibilitätsgrenzen anzugeben.
+
+## 15. Automatisierte Tests
+
+Erstelle umfassende automatisierte Tests.
+
+### 15.1 Aufteilung
+
+| Anzahl | Erwartetes Ergebnis |
+|---|---|
+| 1 | Keine Aufteilung |
+| 998 | Keine Aufteilung |
+| 999 | Keine Aufteilung |
+| 1.000 | 500 / 500 |
+| 1.998 | 999 / 999 |
+| 1.999 | 667 / 666 / 666 |
+| 2.000 | 667 / 667 / 666 |
+| 2.500 | 834 / 833 / 833 |
+| 3.000 | 750 / 750 / 750 / 750 |
+
+### 15.2 XML-Originaltreue
+
+Prüfe insbesondere:
+
+- Erhaltung der XML-Deklaration
+- Erhaltung der pain-Version
+- Erhaltung von Namespaces
+- Erhaltung der Elementreihenfolge
+- Erhaltung von LF und CRLF
+- Erhaltung der Einrückung
+- Erhaltung der Attributreihenfolge
+- Erhaltung von Kommentaren
+- Erhaltung optionaler Elemente
+- Bytegenaue Übernahme von Transaktionsblöcken
+- Ausschließlich erlaubte Änderungen
+- Unterschiedliche PmtInf-Blöcke
+- Unterschiedliche Fälligkeiten und Sequenztypen
+
+### 15.3 Konfiguration und Dateiauswahl
+
+Prüfe:
+
+- BasePath wird korrekt eingelesen.
+- Der Öffnen-Dialog startet im konfigurierten BasePath.
+- Standardmäßig werden nur XML-Dateien angezeigt.
+- Der XML-Dateifilter ist vorausgewählt.
+- Leerer BasePath führt zum Benutzerverzeichnis.
+- Ungültiger BasePath wird behandelt.
+- LastDirectoryOverridesBasePath wird berücksichtigt.
+- Die Ausgabedateien werden immer im Verzeichnis der Originaldatei gespeichert.
+- Am Ende der Verarbeitung soll über einen Knopf das Ausgabeverzeichnis für den Benutzer geöffnet werden können. Das zu benutzende Programm für die Darstellung ergibt sich aus der Umgebung.Beispiel: MacOS = Finder, Windows = Windows Explorer, Linux = das entsprechende Programm für GNOME, MATE, Cinnamon etc.
+
+### 15.4 Fehlerfälle
+
+Prüfe:
+
+- Ungültiges XML
+- Nicht unterstützte pain-Version
+- Fehlerhafte Kontrollsumme
+- Zu lange Identifikationen
+- Doppelte Identifikationen
+- Bereits existierende Ausgabedateien
+- Fehlende Schreibrechte
+- Schreibfehler während der Verarbeitung
+- Mehr als 26 Ausgabedateien
+- Sehr große Eingabedateien
+- Fehlerhafte INI-Konfiguration
+
+## 16. Dokumentation und Projektstruktur
+
+Liefere:
+
+- Vollständigen Quellcode
+- Funktionsfähige grafische Oberfläche
+- Modul zur SEPA-Analyse
+- Modul zur originalgetreuen XML-Verarbeitung
+- Modul für den Aufteilungsalgorithmus
+- Modul zur unabhängigen Originaltreue-Prüfung
+- Modul für Konfiguration
+- Modul für Protokollierung
+- Versionsgerechte XML-Schemata
+- Automatisierte Tests
+- Build-Skripte für Windows, Linux und macOS
+- Beispiel-INI-Datei
+- Synthetische SEPA-Testdateien
+
+Erstelle deutschsprachige Dokumentation:
+
+- README.md
+- INSTALL.md
+- BUILD.md
+- CONFIG.md
+- TESTING.md
+
+## 17. Verbindliche Entwicklungsphasen
+
+**Phase 1 – Fachliche Analyse**
+
+Analysiere die unterstützten pain-Versionen, die XML-Strukturen, die ISO-20022-Vorgaben und die relevanten SEPA-Regeln.
+
+Prüfe die zulässigen Änderungen an MsgId und PmtInfId.
+
+**Phase 2 – Architektur**
+
+Entwickle eine modulare Architektur mit besonderem Schwerpunkt auf bytebewahrender XML-Verarbeitung.
+
+**Phase 3 – Implementierung**
+
+Implementiere die vollständige Anwendung einschließlich GUI, INI-Konfiguration, XML-Verarbeitung und Aufteilungsalgorithmus.
+
+**Phase 4 – Qualitätssicherung**
+
+Erstelle und führe automatisierte Tests aus. Prüfe insbesondere die Originaltreue und die korrekte Aufteilung.
+
+**Phase 5 – Bereitstellung**
+
+Erstelle portable Pakete beziehungsweise reproduzierbare Build-Prozesse für alle Zielplattformen.
+
+## 18. Verbindliche Abnahmekriterien
+
+Die Anwendung ist erst fertig, wenn folgende Bedingungen erfüllt sind:
+
+1. Die ursprüngliche pain-Version bleibt unverändert.
+2. Die ursprüngliche XML-Struktur bleibt erhalten.
+3. Unveränderte XML-Abschnitte bleiben möglichst bytegenau identisch.
+4. Alle Transaktionen bleiben vollständig und unverändert erhalten.
+5. Jede Ausgabedatei enthält höchstens die konfigurierte Maximalanzahl.
+6. Alle Kontrollsummen und Transaktionsanzahlen sind korrekt.
+7. MsgId und PmtInfId sind gültig und eindeutig.
+8. Die Ausgabedateien lassen sich mit meld (unter Linux) sinnvoll mit dem Original vergleichen.
+9. Der BasePath der INI-Datei nebst Namensschema für Unterverzeichnisse wird korrekt verwendet.
+10. Der Öffnen-Dialog zeigt standardmäßig nur XML-Dateien.
+11. Die Originaldatei bleibt unverändert.
+12. Die Anwendung funktioniert offline und ohne separat installierte Python-Laufzeit.
+13. Die automatisierten Tests sind erfolgreich.
+14. Jede Ausgabedatei besteht die implementierte SEPA- und Originaltreue-Prüfung.
+
+**Abschließende Grundregel:**
+
+Die Ausgabedatei muss der Originaldatei entsprechen, abzüglich der nicht zugehörigen Transaktionen und Zahlungsgruppen sowie zuzüglich der zwingend notwendigen Änderungen an Summen-, Anzahl- und Identifikationsfeldern.
+
+Jede weitere Veränderung ist zu vermeiden.
+
+Beginne mit der technischen und fachlichen Analyse. Liefere anschließend die vollständige Implementierung mit allen benötigten Dateien, Tests und Build-Anweisungen. Keine Platzhalter oder unvollständigen Kernfunktionen.
