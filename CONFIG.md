@@ -1,7 +1,17 @@
 # Konfiguration (`SEPA-Splitter.ini`)
 
-Die Datei wird aus dem Verzeichnis der Anwendung geladen (nicht aus dem Arbeitsverzeichnis). Fehlt sie, wird eine
-vollständig kommentierte Standarddatei angelegt (Werte, Beispiele, Defaults). Ungültige Werte werden gemeldet; es
+Die Datei wird nie aus dem Arbeitsverzeichnis geladen, sondern
+
+* **portabel** (entpacktes Paket, Quellcode-Betrieb): aus dem Verzeichnis der Anwendung (macOS: neben `SEPA-Splitter.app`),
+* **installiert** (Installer, .deb, .rpm, DMG): aus dem Benutzerordner
+  * Windows: `%APPDATA%\SEPA-Splitter\`
+  * macOS: `~/Library/Application Support/SEPA-Splitter/`
+  * Linux: `$XDG_CONFIG_HOME/sepa-splitter/`, sonst `~/.config/sepa-splitter/`
+
+Installiert ist die Anwendung, wenn neben der ausführbaren Datei (macOS: in `SEPA-Splitter.app/Contents/Resources`) die
+Datei `SEPA-Splitter.installed` liegt; die Installer legen sie an. Fehlt die INI, wird eine vollständig kommentierte Standarddatei angelegt (Werte, Beispiele,
+Defaults). Installiert gilt: Liegt neben der Anwendung eine `SEPA-Splitter.ini`, wird sie beim ersten Start jedes
+Benutzers als Vorlage übernommen (zum Vorbelegen durch Administratoren). Ungültige Werte werden gemeldet; es
 gilt der Default. Die Standarddatei steht in `sepa_splitter/config.py` (`DEFAULT_INI`) und im Projektordner.
 
 | Abschnitt/Schlüssel | Werte | Default |

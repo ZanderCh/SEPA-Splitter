@@ -1,4 +1,4 @@
-"""Pfad-Hilfen: Anwendungsverzeichnis, Startordner des Öffnen-Dialogs."""
+"""Pfad-Hilfen: Anwendungsverzeichnis, Konfigurationsordner, Startordner des Öffnen-Dialogs."""
 from __future__ import annotations
 
 import os
@@ -9,6 +9,42 @@ from pathlib import Path
 from typing import Optional
 
 
+# Liegt diese Datei neben der ausführbaren Datei (macOS: in SEPA-Splitter.app/Contents/Resources),
+# läuft das Programm als installierte Anwendung (von den Installern angelegt). Ohne sie ist es portabel.
+INSTALLED_MARKER = "SEPA-Splitter.installed"
+
+
+def _frozen() -> bool:
+    return getattr(sys, "frozen", False) or "__compiled__" in globals()
+
+
+def is_installed() -> bool:
+    """True, wenn eine installierte (nicht portable) Anwendung läuft."""
+    if not _frozen():
+        return False
+    exe_dir = Path(sys.executable).resolve().parent
+    candidates = [exe_dir / INSTALLED_MARKER]
+    if exe_dir.name == "MacOS":     # macOS-Bundle: Contents/MacOS darf nur ausführbaren Code enthalten
+        candidates.append(exe_dir.parent / "Resources" / INSTALLED_MARKER)
+    return any(p.is_file() for p in candidates)
+
+
+def user_config_dir() -> Path:
+    """Benutzerbezogener Konfigurationsordner der installierten Anwendung."""
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA")
+        return (Path(base) if base else Path.home() / "AppData" / "Roaming") / "SEPA-Splitter"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "SEPA-Splitter"
+    base = os.environ.get("XDG_CONFIG_HOME", "").strip()
+    return (Path(base) if base and Path(base).is_absolute() else Path.home() / ".config") / "sepa-splitter"
+
+
+def config_dir() -> Path:
+    """Ordner für INI und Zustandsdatei: portabel neben der Anwendung, installiert im Benutzerordner."""
+    return user_config_dir() if is_installed() else app_dir()
+
+
 def app_dir() -> Path:
     """Verzeichnis der ausführbaren Anwendung (NICHT das Arbeitsverzeichnis).
 
@@ -16,8 +52,7 @@ def app_dir() -> Path:
       der das .app-Bundle enthält (dort liegt die INI-Datei).
     - Quellcode-Betrieb: Projektwurzel (Elternordner des Pakets).
     """
-    frozen = getattr(sys, "frozen", False) or "__compiled__" in globals()
-    if frozen:
+    if _frozen():
         exe = Path(sys.executable).resolve()
         if sys.platform == "darwin":
             for parent in exe.parents:

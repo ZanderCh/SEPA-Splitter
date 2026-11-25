@@ -1,6 +1,14 @@
-# Tests und portable Pakete für Windows, Linux (x86_64) und macOS (arm64 + Intel).
+# Tests, portable Pakete und Installer für Windows, Linux (x86_64) und macOS (arm64 + Intel).
 # Jeder Job ruft das Build-Skript des Projekts auf; dieses führt zuerst alle Tests aus
-# (Kern + GUI, offscreen) und bricht bei Fehlern ab. Die Pakete landen als Artefakte am Lauf.
+# (Kern + GUI, offscreen) und bricht bei Fehlern ab. Danach entstehen die Installer
+# (Windows: Inno Setup, macOS: DMG, Linux: .deb und .rpm), die einmal installiert und gestartet werden.
+# Pakete und Installer landen als Artefakte am Lauf; bei einem Tag v* zusätzlich in einem GitHub-Release.
+#
+# Signieren ist optional und geschieht nur, wenn die Repository-Secrets gesetzt sind:
+#   Windows: WINDOWS_SIGN_PFX_BASE64, WINDOWS_SIGN_PASSWORD
+#   macOS:   MACOS_SIGN_P12_BASE64, MACOS_SIGN_P12_PASSWORD, MACOS_SIGN_IDENTITY
+#            (Notarisierung zusätzlich: MACOS_NOTARY_APPLE_ID, MACOS_NOTARY_TEAM_ID, MACOS_NOTARY_PASSWORD)
+# Ohne Secrets entstehen unsignierte Installer (macOS: ad hoc signiert).
 name: Tests und Build
 
 on:
@@ -91,11 +99,130 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path dist\SEPA-Splitter-Windows -DestinationPath dist\SEPA-Splitter-Windows-x64.zip
 
+      # ---------------------------------------------------------------- Installer
+      - name: Installer bauen (Linux .deb/.rpm)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y --no-install-recommends rpm
+          bash build/installer/build_linux_packages.sh
+          test -f dist/*.deb && test -f dist/*.rpm
+
+      - name: Installer testen (Linux .deb)
+        if: runner.os == 'Linux'
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y ./dist/sepa-splitter_*.deb
+          cp samples/beispiel_008_02_2000tx.xml "$RUNNER_TEMP/"
+          sepa-splitter --cli "$RUNNER_TEMP/beispiel_008_02_2000tx.xml" --check
+          test -f "${XDG_CONFIG_HOME:-$HOME/.config}/sepa-splitter/SEPA-Splitter.ini"   # INI im Benutzerordner
+          test ! -e /opt/sepa-splitter/SEPA-Splitter.ini
+          rpm -qp --info --requires dist/*.rpm
+
+      - name: Installer bauen (macOS DMG)
+        if: runner.os == 'macOS'
+        env:
+          MACOS_SIGN_P12_BASE64: ${{ secrets.MACOS_SIGN_P12_BASE64 }}
+          MACOS_SIGN_P12_PASSWORD: ${{ secrets.MACOS_SIGN_P12_PASSWORD }}
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "$MACOS_SIGN_P12_BASE64" ]; then      # optional: Zertifikat in temporären Schlüsselbund
+            KC="$RUNNER_TEMP/sign.keychain-db"; PW="$(uuidgen)"
+            echo "$MACOS_SIGN_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/sign.p12"
+            security create-keychain -p "$PW" "$KC"
+            security set-keychain-settings -lut 21600 "$KC"
+            security unlock-keychain -p "$PW" "$KC"
+            security import "$RUNNER_TEMP/sign.p12" -P "$MACOS_SIGN_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+            security set-key-partition-list -S apple-tool:,apple: -k "$PW" "$KC" >/dev/null
+            security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+            rm -f "$RUNNER_TEMP/sign.p12"
+          else
+            unset MACOS_SIGN_IDENTITY
+          fi
+          bash build/installer/build_macos_dmg.sh
+
+      - name: Installer testen (macOS DMG)
+        if: runner.os == 'macOS'
+        run: |
+          set -euo pipefail
+          MNT="$RUNNER_TEMP/dmg"
+          hdiutil attach dist/*.dmg -mountpoint "$MNT" -nobrowse -readonly
+          cp samples/beispiel_008_02_2000tx.xml "$RUNNER_TEMP/"
+          "$MNT/SEPA-Splitter.app/Contents/MacOS/SEPA-Splitter" --cli "$RUNNER_TEMP/beispiel_008_02_2000tx.xml" --check
+          test -f "$HOME/Library/Application Support/SEPA-Splitter/SEPA-Splitter.ini"
+          codesign --verify --deep --strict "$MNT/SEPA-Splitter.app"
+          hdiutil detach "$MNT"
+
+      - name: Installer bauen (Windows Inno Setup)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          WINDOWS_SIGN_PFX_BASE64: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}
+          WINDOWS_SIGN_PASSWORD: ${{ secrets.WINDOWS_SIGN_PASSWORD }}
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe") -and -not (Get-Command ISCC.exe -ErrorAction SilentlyContinue)) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "Inno Setup konnte nicht installiert werden" }
+          }
+          ./build/installer/build_windows_installer.ps1
+
+      - name: Installer testen (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem dist\*-Setup.exe).FullName
+          $p = Start-Process $setup -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installation fehlgeschlagen ($($p.ExitCode))" }
+          $dir = "$env:LOCALAPPDATA\Programs\SEPA-Splitter"
+          Copy-Item samples\beispiel_008_02_2000tx.xml $env:RUNNER_TEMP
+          $p = Start-Process "$dir\SEPA-Splitter.exe" -ArgumentList '--cli',"$env:RUNNER_TEMP\beispiel_008_02_2000tx.xml",'--check' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Programmstart fehlgeschlagen ($($p.ExitCode))" }
+          if (-not (Test-Path "$env:APPDATA\SEPA-Splitter\SEPA-Splitter.ini")) { throw "INI nicht im Benutzerordner angelegt" }
+          if (Test-Path "$dir\SEPA-Splitter.ini") { throw "INI im Programmordner angelegt" }
+          $p = Start-Process "$dir\unins000.exe" -ArgumentList '/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Deinstallation fehlgeschlagen ($($p.ExitCode))" }
+
       - uses: actions/upload-artifact@v7
         with:
           name: SEPA-Splitter-${{ matrix.name }}
           path: |
             dist/*.zip
             dist/*.tar.gz
+            dist/*-Setup.exe
+            dist/*.dmg
+            dist/*.deb
+            dist/*.rpm
           if-no-files-found: error
           retention-days: 30
+
+  release:
+    name: GitHub-Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # nur dieser Job darf ein Release anlegen
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag und Programmversion vergleichen
+        run: |
+          V="$(sed -n 's/^__version__ = "\(.*\)"/\1/p' sepa_splitter/__init__.py)"
+          [ "${GITHUB_REF_NAME#v}" = "$V" ] || { echo "Tag $GITHUB_REF_NAME passt nicht zu __version__ $V" >&2; exit 1; }
+
+      - uses: actions/download-artifact@v7
+        with:
+          path: pakete
+          merge-multiple: true
+
+      - name: Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp sbom.cdx.json pakete/
+          (cd pakete && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          gh release create "$GITHUB_REF_NAME" pakete/* \
+            --title "SEPA-Splitter ${GITHUB_REF_NAME#v}" --generate-notes

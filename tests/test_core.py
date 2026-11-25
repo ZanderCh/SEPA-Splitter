@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from datetime import date
+from unittest import mock
 from decimal import Decimal
 from pathlib import Path
 
@@ -368,6 +369,98 @@ class TestErrors(Base):
         p, chk, res = self.run_split(data)
         self.assertEqual(hashlib.sha256(p.read_bytes()).hexdigest(), hashlib.sha256(data).hexdigest())
         self.assertNotIn(p, res.files)
+
+
+# ------------------------------------------------------------ Portabel / installiert
+class TestInstalledMode(Base):
+    """Ablageort von INI und Zustandsdatei: portabel neben der Anwendung, installiert im Benutzerordner."""
+
+    def frozen(self, marker: bool, platform: str = "linux"):
+        exe_dir = self.dir / "app"
+        exe_dir.mkdir(exist_ok=True)
+        exe = exe_dir / "SEPA-Splitter"
+        exe.write_bytes(b"")
+        if marker:
+            (exe_dir / paths.INSTALLED_MARKER).write_text("", encoding="utf-8")
+        home = self.dir / "home"
+        home.mkdir(exist_ok=True)
+        env = {"APPDATA": str(self.dir / "appdata"), "XDG_CONFIG_HOME": "", "HOME": str(home),
+               "USERPROFILE": str(home)}
+        return [mock.patch.object(sys, "frozen", True, create=True), mock.patch.object(sys, "executable", str(exe)),
+                mock.patch.object(sys, "platform", platform), mock.patch.dict(os.environ, env),
+                mock.patch.object(Path, "home", classmethod(lambda cls: home))], exe_dir, home
+
+    def enter(self, patches):
+        for pt in patches:
+            pt.start()
+            self.addCleanup(pt.stop)
+
+    def test_source_mode_is_portable(self):
+        self.assertFalse(paths.is_installed())
+        self.assertEqual(paths.config_dir(), paths.app_dir())
+
+    def test_frozen_without_marker_is_portable(self):
+        patches, exe_dir, _ = self.frozen(marker=False)
+        self.enter(patches)
+        self.assertFalse(paths.is_installed())
+        self.assertEqual(paths.config_dir(), exe_dir.resolve())
+        cfg = load_config()
+        self.assertTrue(cfg.ini_created)
+        self.assertEqual(cfg.ini_path, exe_dir.resolve() / "SEPA-Splitter.ini")
+
+    def test_installed_linux_uses_xdg_config(self):
+        patches, exe_dir, home = self.frozen(marker=True)
+        self.enter(patches)
+        self.assertTrue(paths.is_installed())
+        self.assertEqual(paths.config_dir(), home / ".config" / "sepa-splitter")
+        cfg = load_config()                       # legt fehlende Ordner an
+        self.assertTrue(cfg.ini_created)
+        self.assertEqual(cfg.ini_path, home / ".config" / "sepa-splitter" / "SEPA-Splitter.ini")
+        self.assertEqual(cfg.ini_path.read_text(encoding="utf-8"), DEFAULT_INI)
+        self.assertFalse((exe_dir / "SEPA-Splitter.ini").exists())
+        from sepa_splitter.config import save_last_dir, load_last_dir
+        save_last_dir(cfg, str(self.dir))
+        self.assertTrue((cfg.ini_path.parent / "SEPA-Splitter.state").is_file())
+        self.assertEqual(load_last_dir(cfg), str(self.dir))
+
+    def test_installed_linux_respects_xdg_config_home(self):
+        patches, _, _ = self.frozen(marker=True)
+        self.enter(patches)
+        with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": str(self.dir / "xdg")}):
+            self.assertEqual(paths.config_dir(), self.dir / "xdg" / "sepa-splitter")
+        with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": "relativ"}):   # ungültig -> ~/.config
+            self.assertEqual(paths.config_dir().parent.name, ".config")
+
+    def test_installed_windows_uses_appdata(self):
+        patches, _, _ = self.frozen(marker=True, platform="win32")
+        self.enter(patches)
+        self.assertEqual(paths.config_dir(), self.dir / "appdata" / "SEPA-Splitter")
+
+    def test_installed_macos_uses_application_support(self):
+        patches, _, home = self.frozen(marker=True, platform="darwin")
+        self.enter(patches)
+        self.assertEqual(paths.config_dir(), home / "Library" / "Application Support" / "SEPA-Splitter")
+
+    def test_macos_marker_in_bundle_resources(self):
+        bundle = self.dir / "SEPA-Splitter.app" / "Contents"
+        (bundle / "MacOS").mkdir(parents=True)
+        (bundle / "Resources").mkdir()
+        exe = bundle / "MacOS" / "SEPA-Splitter"
+        exe.write_bytes(b"")
+        self.enter([mock.patch.object(sys, "frozen", True, create=True), mock.patch.object(sys, "executable", str(exe)),
+                    mock.patch.object(sys, "platform", "darwin")])
+        self.assertFalse(paths.is_installed())
+        (bundle / "Resources" / paths.INSTALLED_MARKER).write_text("", encoding="utf-8")
+        self.assertTrue(paths.is_installed())
+
+    def test_installed_uses_ini_next_to_app_as_template(self):
+        patches, exe_dir, _ = self.frozen(marker=True)
+        self.enter(patches)
+        (exe_dir / "SEPA-Splitter.ini").write_text("[General]\nMaxTransactions = 500\n", encoding="utf-8")
+        cfg = load_config()
+        self.assertTrue(cfg.ini_created)
+        self.assertEqual(cfg.max_transactions, 500)
+        self.assertNotEqual(cfg.ini_path.parent, exe_dir.resolve())
 
 
 # ------------------------------------------------------------ 15.3 Konfiguration / Pfade

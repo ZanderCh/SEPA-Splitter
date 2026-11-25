@@ -1,4 +1,7 @@
-"""Konfiguration über SEPA-Splitter.ini (liegt neben der Anwendung, nicht im Arbeitsverzeichnis)."""
+"""Konfiguration über SEPA-Splitter.ini (nie aus dem Arbeitsverzeichnis).
+
+Portabel liegt sie neben der Anwendung, installiert im Benutzerordner (siehe ``paths.config_dir``).
+"""
 from __future__ import annotations
 
 import configparser
@@ -8,7 +11,7 @@ from pathlib import Path
 from typing import List
 
 from .errors import ConfigError
-from .paths import app_dir
+from .paths import app_dir, config_dir, is_installed
 
 INI_NAME = "SEPA-Splitter.ini"
 
@@ -171,7 +174,7 @@ class Config:
     log_level: str = "INFO"
     log_file: str = "SEPA-Splitter.log"
     problems: List[str] = field(default_factory=list)   # Meldungen für den Anwender
-    ini_path: Path = field(default_factory=lambda: app_dir() / INI_NAME)
+    ini_path: Path = field(default_factory=lambda: config_dir() / INI_NAME)
     ini_created: bool = False
 
 
@@ -180,19 +183,35 @@ _SEP_OK = re.compile(r"^[A-Za-z0-9_.\-]{0,3}$")
 _BOOL = {"true": True, "false": False, "1": True, "0": False, "ja": True, "nein": False, "yes": True, "no": False}
 
 
+def _initial_ini(explicit: Path | None) -> str:
+    """Inhalt einer neu anzulegenden INI. Installiert dient eine INI neben der Anwendung als Vorlage
+    (z. B. von einer Administratorin vorbelegt), sonst die kommentierte Standarddatei."""
+    if explicit is None and is_installed():
+        try:
+            return (app_dir() / INI_NAME).read_text(encoding="utf-8-sig")
+        except (OSError, UnicodeDecodeError):
+            pass
+    return DEFAULT_INI
+
+
 def load_config(ini_path: Path | None = None) -> Config:
     cfg = Config()
-    path = Path(ini_path) if ini_path else app_dir() / INI_NAME
+    path = Path(ini_path) if ini_path else config_dir() / INI_NAME
     cfg.ini_path = path
     if not path.exists():
         try:
-            path.write_text(DEFAULT_INI, encoding="utf-8")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            text = _initial_ini(ini_path)
+            path.write_text(text, encoding="utf-8")
             cfg.ini_created = True
         except OSError as e:
             cfg.problems.append(
                 f"Die Konfigurationsdatei „{path}“ fehlt und kann nicht angelegt werden ({e.strerror or e}). "
                 f"Es gelten die Standardwerte.")
-        return cfg
+            return cfg
+        if text == DEFAULT_INI:
+            return cfg            # Standarddatei: enthält nur Standardwerte
+        # sonst: aus einer Vorlage übernommen -> wie eine vorhandene Datei einlesen
     cp = configparser.ConfigParser(interpolation=None, inline_comment_prefixes=None, comment_prefixes=("#", ";"))
     try:
         cp.read_string(path.read_text(encoding="utf-8-sig"))
