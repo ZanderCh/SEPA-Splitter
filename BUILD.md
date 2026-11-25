@@ -29,3 +29,8 @@ Hinweis: Die INI liegt neben dem Bundle; ein Schreiben in ein notarisiertes/„t
 
 ## Linux
 Auf dem ältesten unterstützten System bauen. Qt benötigt `libxcb-cursor0`; unter Wayland ggf. `QT_QPA_PLATFORM=xcb`.
+
+## SBOM
+`sbom.cdx.json` (CycloneDX 1.6) listet alle mitgelieferten Bestandteile (Python, PySide6/Qt, lxml mit libxml2/libxslt)
+sowie die reinen Build-/Testwerkzeuge (`scope: excluded`). Nach Versionswechseln mit dem Python der Build-Umgebung neu
+erzeugen: `.venv-build/bin/python build/make_sbom.py` (Windows: `.venv-build\Scripts\python build\make_sbom.py`).

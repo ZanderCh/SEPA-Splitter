@@ -1,0 +1,648 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.6",
+  "serialNumber": "urn:uuid:7922da70-5a09-4a53-8beb-129ba89c81a2",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-11-25T04:27:26Z",
+    "lifecycles": [
+      {
+        "phase": "build"
+      }
+    ],
+    "tools": {
+      "components": [
+        {
+          "type": "application",
+          "name": "build/make_sbom.py"
+        }
+      ]
+    },
+    "component": {
+      "type": "application",
+      "bom-ref": "pkg:generic/sepa-splitter@1.0.0",
+      "name": "SEPA-Splitter",
+      "version": "1.0.0",
+      "description": "Originalgetreues Aufteilen von SEPA-Lastschriftdateien (pain.008.001.02/.08)",
+      "authors": [
+        {
+          "name": "Christian Zander"
+        }
+      ],
+      "purl": "pkg:generic/sepa-splitter@1.0.0"
+    },
+    "properties": [
+      {
+        "name": "sepa-splitter:build-platform",
+        "value": "Linux x86_64"
+      }
+    ]
+  },
+  "components": [
+    {
+      "type": "application",
+      "bom-ref": "pkg:generic/cpython@3.12.3",
+      "name": "CPython",
+      "version": "3.12.3",
+      "scope": "required",
+      "description": "Python-Interpreter (von PyInstaller eingebettet)",
+      "licenses": [
+        {
+          "expression": "PSF-2.0"
+        }
+      ],
+      "purl": "pkg:generic/cpython@3.12.3",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://www.python.org/"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyside6@6.12.0",
+      "name": "PySide6",
+      "version": "6.12.0",
+      "scope": "required",
+      "description": "Python bindings for the Qt cross-platform application and UI framework",
+      "licenses": [
+        {
+          "expression": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+        }
+      ],
+      "purl": "pkg:pypi/pyside6@6.12.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pyside.org"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyside6-essentials@6.12.0",
+      "name": "PySide6_Essentials",
+      "version": "6.12.0",
+      "scope": "required",
+      "description": "Python bindings for the Qt cross-platform application and UI framework (Essentials)",
+      "licenses": [
+        {
+          "expression": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+        }
+      ],
+      "purl": "pkg:pypi/pyside6-essentials@6.12.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pyside.org"
+        }
+      ],
+      "components": [
+        {
+          "type": "framework",
+          "bom-ref": "pkg:generic/qt@6.12.0",
+          "name": "Qt",
+          "version": "6.12.0",
+          "scope": "required",
+          "description": "Qt-Bibliotheken (im Wheel PySide6_Essentials/Addons enthalten)",
+          "licenses": [
+            {
+              "expression": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+            }
+          ],
+          "purl": "pkg:generic/qt@6.12.0",
+          "externalReferences": [
+            {
+              "type": "website",
+              "url": "https://www.qt.io/"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyside6-addons@6.12.0",
+      "name": "PySide6_Addons",
+      "version": "6.12.0",
+      "scope": "required",
+      "description": "Python bindings for the Qt cross-platform application and UI framework (Addons)",
+      "licenses": [
+        {
+          "expression": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+        }
+      ],
+      "purl": "pkg:pypi/pyside6-addons@6.12.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pyside.org"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyside6-pdf@6.12.0.140",
+      "name": "PySide6_Pdf",
+      "version": "6.12.0.140",
+      "scope": "required",
+      "description": "Python bindings for the Qt cross-platform application and UI framework (Pdf)",
+      "licenses": [
+        {
+          "expression": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+        }
+      ],
+      "purl": "pkg:pypi/pyside6-pdf@6.12.0.140",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pyside.org"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyside6-webengine@6.12.0.140",
+      "name": "PySide6_WebEngine",
+      "version": "6.12.0.140",
+      "scope": "excluded",
+      "description": "Python bindings for the Qt cross-platform application and UI framework (WebEngine)",
+      "licenses": [
+        {
+          "expression": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+        }
+      ],
+      "purl": "pkg:pypi/pyside6-webengine@6.12.0.140",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pyside.org"
+        }
+      ],
+      "properties": [
+        {
+          "name": "sepa-splitter:bundled",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/shiboken6@6.12.0",
+      "name": "shiboken6",
+      "version": "6.12.0",
+      "scope": "required",
+      "description": "Python/C++ bindings helper module",
+      "licenses": [
+        {
+          "expression": "LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only"
+        }
+      ],
+      "purl": "pkg:pypi/shiboken6@6.12.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pyside.org"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/lxml@6.1.3",
+      "name": "lxml",
+      "version": "6.1.3",
+      "scope": "required",
+      "description": "Powerful and Pythonic XML processing library combining libxml2/libxslt with the ElementTree API.",
+      "licenses": [
+        {
+          "expression": "BSD-3-Clause"
+        }
+      ],
+      "purl": "pkg:pypi/lxml@6.1.3",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://lxml.de/"
+        }
+      ],
+      "components": [
+        {
+          "type": "library",
+          "bom-ref": "pkg:generic/libxml2@2.14.6",
+          "name": "libxml2",
+          "version": "2.14.6",
+          "scope": "required",
+          "description": "statisch in lxml eingebunden",
+          "licenses": [
+            {
+              "expression": "MIT"
+            }
+          ],
+          "purl": "pkg:generic/libxml2@2.14.6",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://gitlab.gnome.org/GNOME/libxml2"
+            }
+          ]
+        },
+        {
+          "type": "library",
+          "bom-ref": "pkg:generic/libxslt@1.1.43",
+          "name": "libxslt",
+          "version": "1.1.43",
+          "scope": "required",
+          "description": "statisch in lxml eingebunden",
+          "licenses": [
+            {
+              "expression": "MIT"
+            }
+          ],
+          "purl": "pkg:generic/libxslt@1.1.43",
+          "externalReferences": [
+            {
+              "type": "vcs",
+              "url": "https://gitlab.gnome.org/GNOME/libxslt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyinstaller@6.22.3",
+      "name": "pyinstaller",
+      "version": "6.22.3",
+      "scope": "excluded",
+      "description": "PyInstaller bundles a Python application and all its dependencies into a single package.",
+      "licenses": [
+        {
+          "expression": "GPL-2.0-or-later WITH Bootloader-exception"
+        }
+      ],
+      "purl": "pkg:pypi/pyinstaller@6.22.3",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pyinstaller.org"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pyinstaller-hooks-contrib@2026.9",
+      "name": "pyinstaller-hooks-contrib",
+      "version": "2026.9",
+      "scope": "excluded",
+      "description": "Community maintained hooks for PyInstaller",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR GPL-2.0-or-later"
+        }
+      ],
+      "purl": "pkg:pypi/pyinstaller-hooks-contrib@2026.9",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/pyinstaller/pyinstaller-hooks-contrib"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/altgraph@0.17.5",
+      "name": "altgraph",
+      "version": "0.17.5",
+      "scope": "excluded",
+      "description": "Python graph (network) package",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:pypi/altgraph@0.17.5",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://altgraph.readthedocs.io"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/packaging@26.3",
+      "name": "packaging",
+      "version": "26.3",
+      "scope": "excluded",
+      "description": "Core utilities for Python packages",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR BSD-2-Clause"
+        }
+      ],
+      "purl": "pkg:pypi/packaging@26.3",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://packaging.pypa.io/"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/setuptools@84.2.1",
+      "name": "setuptools",
+      "version": "84.2.1",
+      "scope": "excluded",
+      "description": "Most extensible Python build backend with support for C/C++ extension modules",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:pypi/setuptools@84.2.1",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/pypa/setuptools"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pytest@9.2.0",
+      "name": "pytest",
+      "version": "9.2.0",
+      "scope": "excluded",
+      "description": "pytest: simple powerful testing with Python",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:pypi/pytest@9.2.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://docs.pytest.org/en/stable/changelog.html"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pytest-qt@4.5.0",
+      "name": "pytest-qt",
+      "version": "4.5.0",
+      "scope": "excluded",
+      "description": "pytest support for PyQt and PySide applications",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:pypi/pytest-qt@4.5.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "http://github.com/pytest-dev/pytest-qt"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pluggy@1.7.0",
+      "name": "pluggy",
+      "version": "1.7.0",
+      "scope": "excluded",
+      "description": "plugin and hook calling mechanisms for python",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:pypi/pluggy@1.7.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/pytest-dev/pluggy"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/iniconfig@2.3.1",
+      "name": "iniconfig",
+      "version": "2.3.1",
+      "scope": "excluded",
+      "description": "brain-dead simple config-ini parsing",
+      "licenses": [
+        {
+          "expression": "MIT"
+        }
+      ],
+      "purl": "pkg:pypi/iniconfig@2.3.1",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/pytest-dev/iniconfig"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pygments@2.21.0",
+      "name": "Pygments",
+      "version": "2.21.0",
+      "scope": "excluded",
+      "description": "Pygments is a syntax highlighting package written in Python.",
+      "licenses": [
+        {
+          "expression": "BSD-2-Clause"
+        }
+      ],
+      "purl": "pkg:pypi/pygments@2.21.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pygments.org"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/typing-extensions@4.16.0",
+      "name": "typing_extensions",
+      "version": "4.16.0",
+      "scope": "excluded",
+      "description": "Backported and Experimental Type Hints for Python 3.9+",
+      "licenses": [
+        {
+          "expression": "PSF-2.0"
+        }
+      ],
+      "purl": "pkg:pypi/typing-extensions@4.16.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://github.com/python/typing_extensions/issues"
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "pkg:pypi/pillow@13.0.0",
+      "name": "pillow",
+      "version": "13.0.0",
+      "scope": "excluded",
+      "description": "Python Imaging Library (fork)",
+      "licenses": [
+        {
+          "expression": "MIT-CMU"
+        }
+      ],
+      "purl": "pkg:pypi/pillow@13.0.0",
+      "externalReferences": [
+        {
+          "type": "website",
+          "url": "https://pillow.readthedocs.io/en/stable/releasenotes/index.html"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "pkg:generic/sepa-splitter@1.0.0",
+      "dependsOn": [
+        "pkg:generic/cpython@3.12.3",
+        "pkg:pypi/pyside6@6.12.0",
+        "pkg:pypi/lxml@6.1.3"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pyside6@6.12.0",
+      "dependsOn": [
+        "pkg:pypi/pyside6-essentials@6.12.0",
+        "pkg:pypi/pyside6-addons@6.12.0",
+        "pkg:pypi/pyside6-webengine@6.12.0.140",
+        "pkg:pypi/pyside6-pdf@6.12.0.140"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pyside6-essentials@6.12.0",
+      "dependsOn": [
+        "pkg:pypi/shiboken6@6.12.0",
+        "pkg:generic/qt@6.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:generic/qt@6.12.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/pyside6-addons@6.12.0",
+      "dependsOn": [
+        "pkg:pypi/pyside6-essentials@6.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pyside6-pdf@6.12.0.140",
+      "dependsOn": [
+        "pkg:pypi/pyside6-essentials@6.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pyside6-webengine@6.12.0.140",
+      "dependsOn": [
+        "pkg:pypi/pyside6-addons@6.12.0"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/shiboken6@6.12.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/lxml@6.1.3",
+      "dependsOn": [
+        "pkg:generic/libxml2@2.14.6",
+        "pkg:generic/libxslt@1.1.43"
+      ]
+    },
+    {
+      "ref": "pkg:generic/libxml2@2.14.6",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/libxslt@1.1.43",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/pyinstaller@6.22.3",
+      "dependsOn": [
+        "pkg:pypi/altgraph@0.17.5",
+        "pkg:pypi/packaging@26.3",
+        "pkg:pypi/pyinstaller-hooks-contrib@2026.9",
+        "pkg:pypi/setuptools@84.2.1"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pyinstaller-hooks-contrib@2026.9",
+      "dependsOn": [
+        "pkg:pypi/packaging@26.3"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/altgraph@0.17.5",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/packaging@26.3",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/setuptools@84.2.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/pytest@9.2.0",
+      "dependsOn": [
+        "pkg:pypi/iniconfig@2.3.1",
+        "pkg:pypi/packaging@26.3",
+        "pkg:pypi/pluggy@1.7.0",
+        "pkg:pypi/pygments@2.21.0"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pytest-qt@4.5.0",
+      "dependsOn": [
+        "pkg:pypi/pytest@9.2.0",
+        "pkg:pypi/pluggy@1.7.0",
+        "pkg:pypi/typing-extensions@4.16.0"
+      ]
+    },
+    {
+      "ref": "pkg:pypi/pluggy@1.7.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/iniconfig@2.3.1",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/pygments@2.21.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/typing-extensions@4.16.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:pypi/pillow@13.0.0",
+      "dependsOn": []
+    },
+    {
+      "ref": "pkg:generic/cpython@3.12.3",
+      "dependsOn": []
+    }
+  ]
+}
