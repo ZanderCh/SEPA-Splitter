@@ -15,5 +15,5 @@ if ($LASTEXITCODE -ne 0) { throw "PyInstaller fehlgeschlagen" }
 $out = "dist\SEPA-Splitter-Windows"
 New-Item -ItemType Directory -Force $out | Out-Null
 Move-Item dist\SEPA-Splitter\* $out
-Copy-Item SEPA-Splitter.ini $out
+Copy-Item SEPA-Splitter.ini, LICENSE $out
 Write-Host "Fertig: $out"

@@ -160,6 +160,8 @@ def main() -> None:
                 "type": "application", "bom-ref": app_ref, "name": "SEPA-Splitter", "version": __version__,
                 "description": "Originalgetreues Aufteilen von SEPA-Lastschriftdateien (pain.008.001.02/.08)",
                 "authors": [{"name": "Christian Zander"}], "purl": app_ref,
+                "licenses": [{"expression": "GPL-3.0-only"}],
+                "copyright": "Copyright (C) 2026 Christian Zander",
             },
             "properties": [{"name": "sepa-splitter:build-platform",
                             "value": f"{platform.system()} {platform.machine()}"}],

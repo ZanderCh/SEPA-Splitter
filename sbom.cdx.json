@@ -1,10 +1,10 @@
 {
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
-  "serialNumber": "urn:uuid:7922da70-5a09-4a53-8beb-129ba89c81a2",
+  "serialNumber": "urn:uuid:730131a4-65a8-4e26-a2d4-2918f8bf575f",
   "version": 1,
   "metadata": {
-    "timestamp": "2026-11-25T04:27:26Z",
+    "timestamp": "2026-11-25T04:34:40Z",
     "lifecycles": [
       {
         "phase": "build"
@@ -29,7 +29,13 @@
           "name": "Christian Zander"
         }
       ],
-      "purl": "pkg:generic/sepa-splitter@1.0.0"
+      "purl": "pkg:generic/sepa-splitter@1.0.0",
+      "licenses": [
+        {
+          "expression": "GPL-3.0-only"
+        }
+      ],
+      "copyright": "Copyright (C) 2026 Christian Zander"
     },
     "properties": [
       {

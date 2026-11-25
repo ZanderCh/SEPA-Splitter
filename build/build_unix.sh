@@ -19,6 +19,6 @@ else
   OUT="dist/SEPA-Splitter-Linux-$ARCH"; mkdir -p "$OUT"
   mv dist/SEPA-Splitter/* "$OUT/"; rmdir dist/SEPA-Splitter
 fi
-cp SEPA-Splitter.ini "$OUT/"
+cp SEPA-Splitter.ini LICENSE "$OUT/"
 echo "Fertig: $OUT"
 # macOS: Signierung/Notarisierung siehe BUILD.md

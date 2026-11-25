@@ -24,6 +24,14 @@ python run_sepa_splitter.py --cli DATEI  # Kommandozeile (--check = nur prüfen)
 ```
 Weitere Dokumentation: INSTALL.md, BUILD.md, CONFIG.md, TESTING.md.
 
+## Lizenz
+Copyright (C) 2026 Christian Zander
+
+SEPA-Splitter ist freie Software unter der **GNU General Public License, Version 3** (GPL-3.0-only),
+siehe [LICENSE](LICENSE). Wer das Programm, auch verändert, weitergibt, muss den Empfängern den vollständigen
+Quellcode unter derselben Lizenz zur Verfügung stellen. Das Programm wird ohne jede Gewährleistung bereitgestellt.
+Die Lizenzen der mitgelieferten Bibliotheken (u. a. Qt/PySide6 unter LGPL-3.0) sind in `sbom.cdx.json` aufgeführt.
+
 ## Module
 `xmlscan.py` (positionsgenauer Scanner) · `analyzer.py` (Prüfung/SEPA-Analyse) · `splitter.py`
 (Planung + bytebewahrende Erzeugung) · `verifier.py` (unabhängige Prüfung) · `config.py` · `protocol.py`
